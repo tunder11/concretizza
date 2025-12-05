@@ -1,40 +1,4 @@
-// ===== DADOS =====
-let usuarios = JSON.parse(localStorage.getItem("usuarios")) || [
-  {
-    id: 1,
-    nome: "Admin Sistema",
-    email: "admin@concretizza.com",
-    senha: "admin123",
-    permissao: "admin",
-    status: "ativo",
-    telefone: "(11) 98765-4321",
-    departamento: "Administração",
-    ultimoAcesso: "2024-01-20",
-  },
-  {
-    id: 2,
-    nome: "Maria Silva",
-    email: "maria.silva@concretizza.com",
-    senha: "maria123",
-    permissao: "editor",
-    status: "ativo",
-    telefone: "(11) 91234-5678",
-    departamento: "Vendas",
-    ultimoAcesso: "2024-01-19",
-  },
-  {
-    id: 3,
-    nome: "João Santos",
-    email: "joao.santos@concretizza.com",
-    senha: "joao123",
-    permissao: "visualizador",
-    status: "inativo",
-    telefone: "(11) 99876-5432",
-    departamento: "Atendimento",
-    ultimoAcesso: "2024-01-15",
-  },
-]
-
+let usuarios = []
 let editandoUsuarioId = null
 let paginaAtual = 1
 const itensPorPagina = 10
@@ -42,13 +6,31 @@ let usuariosSelecionados = []
 let excluindoUsuarioId = null
 let excluindoEmMassa = false
 
+// API BASE URL - ajusta automaticamente para localhost ou produção
+const API_URL = window.location.hostname === "localhost" ? "http://localhost:3000" : ""
+
 // ===== INICIALIZAÇÃO =====
 document.addEventListener("DOMContentLoaded", () => {
-  carregarDados()
+  carregarUsuariosDoServidor()
   configurarEventos()
-  atualizarTabela()
   atualizarEstatisticas()
 })
+
+async function carregarUsuariosDoServidor() {
+  try {
+    console.log("[v0] Carregando usuários do servidor...")
+    const response = await fetch(`${API_URL}/api/usuarios`)
+    if (!response.ok) throw new Error("Erro ao carregar usuários")
+
+    usuarios = await response.json()
+    console.log("[v0] Usuários carregados:", usuarios.length)
+    atualizarTabela()
+    atualizarEstatisticas()
+  } catch (error) {
+    console.error("[v0] Erro ao carregar usuários:", error)
+    mostrarToast("Erro ao carregar usuários do servidor", "error")
+  }
+}
 
 function configurarEventos() {
   // Sidebar toggle
@@ -170,6 +152,7 @@ function configurarEventos() {
   document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
     e.preventDefault()
     if (confirm("Deseja realmente sair?")) {
+      localStorage.removeItem("usuarioLogado")
       window.location.href = "index.html"
     }
   })
@@ -240,68 +223,89 @@ function confirmarExclusao() {
 }
 
 // ===== CRUD =====
-function salvarUsuario(e) {
+async function salvarUsuario(e) {
   e.preventDefault()
 
-  const usuario = {
-    id: editandoUsuarioId || Date.now(),
+  const usuarioData = {
     nome: document.getElementById("usuarioNome").value,
     email: document.getElementById("usuarioEmail").value,
     permissao: document.getElementById("usuarioPermissao").value,
     status: document.getElementById("usuarioStatus").value,
     telefone: document.getElementById("usuarioTelefone").value,
     departamento: document.getElementById("usuarioDepartamento").value,
-    ultimoAcesso: editandoUsuarioId
-      ? usuarios.find((u) => u.id === editandoUsuarioId).ultimoAcesso
-      : new Date().toISOString().split("T")[0],
+    senha: document.getElementById("usuarioSenha").value,
   }
 
-  // Adicionar senha apenas se foi fornecida
-  const senha = document.getElementById("usuarioSenha").value
-  if (senha) {
-    usuario.senha = senha
-  } else if (editandoUsuarioId) {
-    usuario.senha = usuarios.find((u) => u.id === editandoUsuarioId).senha
+  try {
+    let response
+
+    if (editandoUsuarioId) {
+      console.log("[v0] Atualizando usuário ID:", editandoUsuarioId)
+      response = await fetch(`${API_URL}/api/usuarios/${editandoUsuarioId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(usuarioData),
+      })
+
+      if (!response.ok) throw new Error("Erro ao atualizar usuário")
+      mostrarToast("Usuário atualizado com sucesso!", "success")
+    } else {
+      console.log("[v0] Criando novo usuário")
+      response = await fetch(`${API_URL}/api/usuarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(usuarioData),
+      })
+
+      if (!response.ok) throw new Error("Erro ao criar usuário")
+      mostrarToast("Usuário cadastrado com sucesso!", "success")
+    }
+
+    fecharModal()
+    await carregarUsuariosDoServidor()
+  } catch (error) {
+    console.error("[v0] Erro ao salvar usuário:", error)
+    mostrarToast("Erro ao salvar usuário", "error")
   }
+}
 
-  if (editandoUsuarioId) {
-    const index = usuarios.findIndex((u) => u.id === editandoUsuarioId)
-    usuarios[index] = usuario
-    mostrarToast("Usuário atualizado com sucesso!", "success")
-  } else {
-    usuarios.push(usuario)
-    mostrarToast("Usuário cadastrado com sucesso!", "success")
+async function executarExclusao(id) {
+  try {
+    console.log("[v0] Excluindo usuário ID:", id)
+    const response = await fetch(`${API_URL}/api/usuarios/${id}`, {
+      method: "DELETE",
+    })
+
+    if (!response.ok) throw new Error("Erro ao excluir usuário")
+
+    usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
+    mostrarToast("Usuário excluído com sucesso!", "success")
+    await carregarUsuariosDoServidor()
+  } catch (error) {
+    console.error("[v0] Erro ao excluir usuário:", error)
+    mostrarToast("Erro ao excluir usuário", "error")
   }
-
-  salvarDados()
-  fecharModal()
-  atualizarTabela()
-  atualizarEstatisticas()
 }
 
-function excluirUsuario(id) {
-  abrirModalConfirmacao(id, false)
-}
+async function excluirUsuariosSelecionados() {
+  try {
+    console.log("[v0] Excluindo", usuariosSelecionados.length, "usuários")
 
-function executarExclusao(id) {
-  usuarios = usuarios.filter((u) => u.id !== id)
-  usuariosSelecionados = usuariosSelecionados.filter((uId) => uId !== id)
-  salvarDados()
-  atualizarTabela()
-  atualizarEstatisticas()
-  atualizarBulkActions()
-  mostrarToast("Usuário excluído com sucesso!", "success")
-}
+    for (const id of usuariosSelecionados) {
+      const response = await fetch(`${API_URL}/api/usuarios/${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) throw new Error(`Erro ao excluir usuário ${id}`)
+    }
 
-function excluirUsuariosSelecionados() {
-  const qtd = usuariosSelecionados.length
-  usuarios = usuarios.filter((u) => !usuariosSelecionados.includes(u.id))
-  usuariosSelecionados = []
-  salvarDados()
-  atualizarTabela()
-  atualizarEstatisticas()
-  atualizarBulkActions()
-  mostrarToast(`${qtd} usuário${qtd > 1 ? "s excluídos" : " excluído"} com sucesso!`, "success")
+    const qtd = usuariosSelecionados.length
+    usuariosSelecionados = []
+    mostrarToast(`${qtd} usuário${qtd > 1 ? "s excluídos" : " excluído"} com sucesso!`, "success")
+    await carregarUsuariosDoServidor()
+  } catch (error) {
+    console.error("[v0] Erro ao excluir usuários:", error)
+    mostrarToast("Erro ao excluir usuários", "error")
+  }
 }
 
 // ===== TABELA =====
@@ -309,7 +313,6 @@ function atualizarTabela() {
   const tbody = document.getElementById("usuariosTable")
   const usuariosFiltrados = obterUsuariosFiltrados()
 
-  // Paginação
   const inicio = (paginaAtual - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const usuariosPagina = usuariosFiltrados.slice(inicio, fim)
@@ -410,6 +413,7 @@ function formatarStatus(status) {
 }
 
 function formatarData(data) {
+  if (!data) return "Nunca"
   const [ano, mes, dia] = data.split("-")
   return `${dia}/${mes}/${ano}`
 }
@@ -424,22 +428,14 @@ function mostrarToast(mensagem, tipo = "success") {
   }, 3000)
 }
 
-function salvarDados() {
-  localStorage.setItem("usuarios", JSON.stringify(usuarios))
-}
-
-function carregarDados() {
-  const storedUsuarios = localStorage.getItem("usuarios")
-  if (storedUsuarios) {
-    usuarios = JSON.parse(storedUsuarios)
-  }
+function excluirUsuario(id) {
+  abrirModalConfirmacao(id, false)
 }
 
 function abrirModalDetalhes(id) {
   const usuario = usuarios.find((u) => u.id === id)
 
   if (usuario) {
-    // Avatar
     const iniciais = usuario.nome
       .split(" ")
       .map((n) => n[0])
@@ -448,13 +444,11 @@ function abrirModalDetalhes(id) {
       .toUpperCase()
     document.getElementById("detailAvatar").textContent = iniciais
 
-    // Header
     document.getElementById("detailNomeHeader").textContent = usuario.nome
     const permissaoHeader = document.getElementById("detailPermissaoHeader")
     permissaoHeader.textContent = formatarPermissao(usuario.permissao)
     permissaoHeader.className = `badge badge-${usuario.permissao}`
 
-    // Details
     document.getElementById("detailEmail").textContent = usuario.email
     document.getElementById("detailTelefone").textContent = usuario.telefone || "Não informado"
     document.getElementById("detailDepartamento").textContent = usuario.departamento || "Não informado"
@@ -466,7 +460,6 @@ function abrirModalDetalhes(id) {
 
     document.getElementById("detailUltimoAcesso").textContent = formatarData(usuario.ultimoAcesso)
 
-    // Permissions list
     const permissoes = getPermissoesPorNivel(usuario.permissao)
     const permissoesHtml = permissoes
       .map((p) => `<span class="permission-tag"><i class="fas fa-check"></i>${p}</span>`)
@@ -529,7 +522,6 @@ function atualizarBulkActions() {
     bulkActions.style.display = "none"
   }
 
-  // Update select all checkbox
   const checkboxes = document.querySelectorAll(".checkbox-usuario")
   const selectAll = document.getElementById("selectAll")
   if (checkboxes.length > 0) {
