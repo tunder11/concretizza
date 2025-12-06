@@ -95,27 +95,54 @@ window.addEventListener("resize", () => {
   canvas.height = window.innerHeight
 })
 
-// --- LOGIN REAL ---
+// --- LOGIN REAL COM USUÁRIOS CADASTRADOS ---
 function handleSubmit(event) {
   event.preventDefault()
 
   const username = document.getElementById("username").value.trim()
   const password = document.getElementById("password").value.trim()
 
-  const usuarios = [
-    { username: "admin", senha: "123", nome: "Administrador", role: "Admin" },
-    { username: "user", senha: "123", nome: "Usuário", role: "User" },
+  console.log("[v0] Username digitado:", username)
+  console.log("[v0] Password digitado:", password)
+
+  const defaultUsers = [
+    { id: "default_admin", username: "admin", senha: "123", nome: "Administrador", cargo: "Admin" },
+    { id: "default_user", username: "user", senha: "123", nome: "Usuário", cargo: "User" },
   ]
 
+  const usuariosDoStorage = JSON.parse(localStorage.getItem("usuarios")) || []
+  const usuariosCadastrados = usuariosDoStorage.map((u) => ({
+    id: u.id,
+    username: u.email, // Usar email como username para login
+    senha: u.senha,
+    nome: u.nome,
+    cargo: u.permissao === "admin" ? "Admin" : "User", // Mapear permissao para cargo
+  }))
+
+  const usuarios = [...defaultUsers, ...usuariosCadastrados]
+
+  console.log("[v0] Usuários disponíveis:", usuarios)
+
   const userFound = usuarios.find((u) => u.username === username && u.senha === password)
+
+  console.log("[v0] Usuário encontrado:", userFound)
 
   if (!userFound) {
     alert("Usuário ou senha incorretos!")
     return
   }
 
-  // Salva o usuário logado
-  localStorage.setItem("usuarioLogado", JSON.stringify(userFound))
+  localStorage.setItem(
+    "usuarioLogado",
+    JSON.stringify({
+      id: userFound.id,
+      username: userFound.username,
+      nome: userFound.nome,
+      cargo: userFound.cargo,
+    }),
+  )
+
+  console.log("[v0] Usuário logado:", JSON.parse(localStorage.getItem("usuarioLogado")))
 
   // Redireciona
   window.location.href = "dashboard.html"

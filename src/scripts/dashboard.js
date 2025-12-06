@@ -17,6 +17,8 @@ function verificarAutenticacao() {
 
 function carregarDadosUsuario() {
   const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
+  console.log("[v0] Usuário logado carregado:", usuarioLogado)
+
   if (usuarioLogado) {
     const userNameElement = document.getElementById("userName")
     const userRoleElement = document.getElementById("userRole")
@@ -26,14 +28,17 @@ function carregarDadosUsuario() {
     }
 
     if (userRoleElement) {
-      userRoleElement.textContent = usuarioLogado.role || "User"
+      userRoleElement.textContent = usuarioLogado.cargo || "User"
     }
 
-    // Mostrar seção admin se for admin
-    if (usuarioLogado.role === "Admin") {
-      const adminSection = document.getElementById("adminSection")
-      if (adminSection) {
+    console.log("[v0] Cargo do usuário:", usuarioLogado.cargo)
+    const adminSection = document.getElementById("adminSection")
+    if (adminSection) {
+      if (usuarioLogado.cargo === "Admin") {
         adminSection.style.display = "block"
+        console.log("[v0] Seção admin exibida")
+      } else {
+        adminSection.style.display = "none"
       }
     }
   }
@@ -42,6 +47,7 @@ function carregarDadosUsuario() {
 // ===== DASHBOARD =====
 function atualizarDashboard() {
   const clientes = getClientes()
+  console.log("[v0] Clientes carregados:", clientes)
 
   const totalClientes = clientes.length
   const clientesNovos = clientes.filter((c) => c.status === "novo").length
