@@ -64,7 +64,7 @@
             <div class="header-right">
                 <div class="user-info">
                     <span id="userName">Administrador</span>
-                    <span class="user-role">Admin</span>
+                    <span id="userRole" class="user-role"></span>
                 </div>
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
             </div>
@@ -148,7 +148,7 @@
                     <table class="table">
                         <thead>
                             <tr>
-                                <!-- Added checkbox column to select all clients -->
+                                <!-- Adicionando coluna de checkbox igual em usuarios.html -->
                                 <th style="width: 50px;">
                                     <input type="checkbox" id="selectAll" class="checkbox-input">
                                 </th>
@@ -238,7 +238,7 @@
         </div>
     </div>
 
-    <!-- Added modal for viewing client details -->
+    <!-- Modal de detalhes do cliente -->
     <div id="modalDetalhesCliente" class="modal">
         <div class="modal-content modal-details">
             <div class="modal-header">
@@ -246,17 +246,17 @@
                 <button class="modal-close" id="closeDetailsModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="details-grid">
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Nome Completo</span>
-                            <span class="detail-value" id="detailNome">-</span>
-                        </div>
+                <div class="user-profile-header">
+                    <div class="profile-avatar">
+                        <span id="detailAvatar">C</span>
                     </div>
-                    
+                    <div class="profile-info">
+                        <h3 id="detailNomeHeader">-</h3>
+                        <span id="detailStatusHeader" class="badge">-</span>
+                    </div>
+                </div>
+
+                <div class="details-grid">
                     <div class="detail-item">
                         <div class="detail-icon">
                             <i class="fas fa-phone"></i>
@@ -299,7 +299,17 @@
                     
                     <div class="detail-item">
                         <div class="detail-icon">
-                            <i class="fas fa-chart-line"></i>
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Data do Cadastro</span>
+                            <span class="detail-value" id="detailData">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-info-circle"></i>
                         </div>
                         <div class="detail-info">
                             <span class="detail-label">Status</span>
@@ -307,19 +317,9 @@
                         </div>
                     </div>
                     
-                    <div class="detail-item">
-                        <div class="detail-icon">
-                            <i class="fas fa-calendar"></i>
-                        </div>
-                        <div class="detail-info">
-                            <span class="detail-label">Data de Cadastro</span>
-                            <span class="detail-value" id="detailData">-</span>
-                        </div>
-                    </div>
-                    
                     <div class="detail-item detail-full">
                         <div class="detail-icon">
-                            <i class="fas fa-sticky-note"></i>
+                            <i class="fas fa-file-alt"></i>
                         </div>
                         <div class="detail-info">
                             <span class="detail-label">Observações</span>
@@ -340,7 +340,7 @@
         </div>
     </div>
 
-    <!-- Added confirmation modal for delete actions -->
+    <!-- Modal de confirmação de exclusão -->
     <div id="modalConfirmacao" class="modal">
         <div class="modal-content modal-confirmation">
             <div class="modal-header">

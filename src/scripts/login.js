@@ -113,10 +113,10 @@ function handleSubmit(event) {
   const usuariosDoStorage = JSON.parse(localStorage.getItem("usuarios")) || []
   const usuariosCadastrados = usuariosDoStorage.map((u) => ({
     id: u.id,
-    username: u.email, // Usar email como username para login
+    username: u.email,
     senha: u.senha,
     nome: u.nome,
-    cargo: u.permissao === "admin" ? "Admin" : "User", // Mapear permissao para cargo
+    cargo: u.permissao || "User",
   }))
 
   const usuarios = [...defaultUsers, ...usuariosCadastrados]
