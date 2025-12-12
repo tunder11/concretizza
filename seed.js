@@ -1,13 +1,9 @@
-const sqlite3 = require("sqlite3").verbose()
+const { Pool } = require("pg")
 const bcrypt = require("bcryptjs")
-const path = require("path")
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, "concretizza.db")
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("Erro ao conectar banco:", err)
-    process.exit(1)
-  }
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 })
 
 const BCRYPT_ROUNDS = 10
@@ -44,37 +40,31 @@ const usuariosPadrao = [
 ]
 
 async function seedDatabase() {
-  for (const usuario of usuariosPadrao) {
-    try {
-      const senhaHash = await new Promise((resolve, reject) => {
-        bcrypt.hash(usuario.password, BCRYPT_ROUNDS, (err, hash) => {
-          if (err) reject(err)
-          else resolve(hash)
-        })
-      })
+  try {
+    for (const usuario of usuariosPadrao) {
+      try {
+        const senhaHash = await bcrypt.hash(usuario.password, BCRYPT_ROUNDS)
 
-      await new Promise((resolve, reject) => {
-        db.run(
-          `INSERT OR IGNORE INTO usuarios (nome, email, username, senha, permissao, status)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"],
-          (err) => {
-            if (err) reject(err)
-            else resolve()
-          }
+        await pool.query(
+          `INSERT INTO usuarios (nome, email, username, senha, permissao, status)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (username) DO NOTHING`,
+          [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"]
         )
-      })
 
-      console.log(`✓ Usuário ${usuario.username} criado/atualizado`)
-    } catch (error) {
-      console.error(`✗ Erro ao criar usuário ${usuario.username}:`, error)
+        console.log(`✓ Usuário ${usuario.username} criado/atualizado`)
+      } catch (error) {
+        console.error(`✗ Erro ao criar usuário ${usuario.username}:`, error.message)
+      }
     }
-  }
 
-  db.close(() => {
     console.log("✓ Seed concluído com sucesso!")
+  } catch (error) {
+    console.error("Erro durante seed:", error)
+  } finally {
+    await pool.end()
     process.exit(0)
-  })
+  }
 }
 
 seedDatabase().catch((error) => {

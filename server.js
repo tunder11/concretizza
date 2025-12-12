@@ -2,7 +2,7 @@ require("dotenv").config()
 const express = require("express")
 const path = require("path")
 const fs = require("fs")
-const sqlite3 = require("sqlite3").verbose()
+const { Pool } = require("pg")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const { body, validationResult, param } = require("express-validator")
@@ -90,89 +90,180 @@ function validarRequisicao(req, res, next) {
 }
 
 // ===== INICIALIZAR BANCO DE DADOS =====
-const dbPath = process.env.DB_PATH || path.join(__dirname, "concretizza.db")
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) console.error("Erro ao conectar banco:", err)
-  else console.log("Banco de dados conectado")
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 })
+
+pool.on('error', (err) => {
+  console.error('Erro no pool PostgreSQL:', err)
+})
+
+pool.on('connect', () => {
+  console.log('Banco de dados conectado')
+})
+
+// ===== WRAPPER FUNÇÕES PARA COMPATIBILIDADE =====
+const db = {
+  get: (sql, params, callback) => {
+    pool.query(sql, params, (err, result) => {
+      if (err) return callback(err)
+      callback(null, result.rows[0])
+    })
+  },
+  all: (sql, params, callback) => {
+    if (typeof params === 'function') {
+      callback = params
+      params = []
+    }
+    pool.query(sql, params, (err, result) => {
+      if (err) return callback(err)
+      callback(null, result.rows)
+    })
+  },
+  run: (sql, params, callback) => {
+    if (typeof params === 'function') {
+      callback = params
+      params = []
+    }
+    pool.query(sql, params, (err, result) => {
+      if (err) return callback(err)
+      callback(null, { lastID: result.rows[0]?.id, changes: result.rowCount })
+    })
+  }
+}
 
 // ===== CRIAR TABELAS =====
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS clientes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome TEXT NOT NULL,
-      telefone TEXT NOT NULL,
-      email TEXT,
-      interesse TEXT,
-      valor TEXT,
-      status TEXT,
-      observacoes TEXT,
-      data TEXT,
-      usuario_id INTEGER,
-      criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-      atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `)
+async function initializeTables() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        username TEXT UNIQUE NOT NULL,
+        senha TEXT NOT NULL,
+        permissao TEXT DEFAULT 'visualizar',
+        status TEXT DEFAULT 'ativo',
+        telefone TEXT,
+        departamento TEXT,
+        ultimoAcesso TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log("✓ Tabela usuarios criada")
 
-  db.all("PRAGMA table_info(clientes)", (err, columns) => {
-    if (err) return
-    const hasUsuarioId = columns.some(col => col.name === 'usuario_id')
-    if (!hasUsuarioId) {
-      db.run("ALTER TABLE clientes ADD COLUMN usuario_id INTEGER", (err) => {
-        if (err) console.log("Coluna usuario_id já existe ou erro ao adicionar:", err.message)
-        else console.log("Coluna usuario_id adicionada com sucesso")
-      })
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS clientes (
+        id SERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        telefone TEXT NOT NULL,
+        email TEXT,
+        interesse TEXT,
+        valor TEXT,
+        status TEXT,
+        observacoes TEXT,
+        data TEXT,
+        usuario_id INTEGER REFERENCES usuarios(id),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log("✓ Tabela clientes criada")
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS agendamentos (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+        data TEXT NOT NULL,
+        hora TEXT NOT NULL,
+        tipo TEXT,
+        status TEXT DEFAULT 'agendado',
+        observacoes TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log("✓ Tabela agendamentos criada")
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS logs_auditoria (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER REFERENCES usuarios(id),
+        acao TEXT NOT NULL,
+        modulo TEXT NOT NULL,
+        descricao TEXT,
+        ip_address TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log("✓ Tabela logs_auditoria criada")
+  } catch (error) {
+    console.error("Erro ao criar tabelas:", error.message)
+  }
+}
+
+initializeTables()
+
+// ===== AUTO-SEED USUÁRIOS PADRÃO =====
+const usuariosPadrao = [
+  {
+    nome: "Head Admin",
+    email: "head@concretizza.com",
+    username: "head",
+    password: "123456",
+    permissao: "head-admin"
+  },
+  {
+    nome: "Administrador",
+    email: "admin@concretizza.com",
+    username: "admin",
+    password: "123456",
+    permissao: "admin"
+  },
+  {
+    nome: "Editor",
+    email: "editor@concretizza.com",
+    username: "editor",
+    password: "123456",
+    permissao: "editor"
+  },
+  {
+    nome: "Visualizador",
+    email: "viewer@concretizza.com",
+    username: "viewer",
+    password: "123456",
+    permissao: "visualizar"
+  }
+]
+
+async function seedDefaultUsers() {
+  try {
+    const result = await pool.query("SELECT COUNT(*) as count FROM usuarios")
+    const count = parseInt(result.rows[0].count)
+    
+    if (count === 0) {
+      console.log("📝 Criando usuários padrão...")
+      for (const usuario of usuariosPadrao) {
+        const senhaHash = await bcrypt.hash(usuario.password, BCRYPT_ROUNDS)
+        await pool.query(
+          `INSERT INTO usuarios (nome, email, username, senha, permissao, status)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (username) DO NOTHING`,
+          [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"]
+        )
+        console.log(`  ✓ ${usuario.username}`)
+      }
+      console.log("✓ Usuários padrão criados com sucesso!")
     }
-  })
+  } catch (error) {
+    console.error("Erro ao criar usuários padrão:", error.message)
+  }
+}
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS usuarios (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      username TEXT UNIQUE NOT NULL,
-      senha TEXT NOT NULL,
-      permissao TEXT DEFAULT 'visualizar',
-      status TEXT DEFAULT 'ativo',
-      telefone TEXT,
-      departamento TEXT,
-      ultimoAcesso TEXT,
-      criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-      atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `)
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS agendamentos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      cliente_id INTEGER NOT NULL,
-      usuario_id INTEGER NOT NULL,
-      data TEXT NOT NULL,
-      hora TEXT NOT NULL,
-      tipo TEXT,
-      status TEXT DEFAULT 'agendado',
-      observacoes TEXT,
-      criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-      atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (cliente_id) REFERENCES clientes(id),
-      FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-    )
-  `)
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS logs_auditoria (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      usuario_id INTEGER,
-      acao TEXT NOT NULL,
-      modulo TEXT NOT NULL,
-      descricao TEXT,
-      ip_address TEXT,
-      criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-    )
-  `)
-})
+setTimeout(() => seedDefaultUsers(), 1000)
 
 // ===== ROTA DE AUTENTICAÇÃO (LOGIN) =====
 app.post(
