@@ -508,7 +508,7 @@ app.post(
 
       db.run(
         "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [nome, email, username, senhaHash, permissao, status || "ativo", telefone || null, departamento || null],
+        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null],
         function (err) {
           if (err) {
             if (err.message.includes("UNIQUE")) {
@@ -551,7 +551,7 @@ app.put(
           
           db.run(
             "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
-            [nome, email, senhaHash, permissao, status, telefone, departamento, id],
+            [nome, email, senhaHash, permissao.toLowerCase(), status, telefone, departamento, id],
             function (err) {
               if (err) {
                 console.error("[UPDATE USER] Erro ao atualizar usuário com senha:", err)
@@ -568,7 +568,7 @@ app.put(
       } else {
         db.run(
           "UPDATE usuarios SET nome = $1, email = $2, permissao = $3, status = $4, telefone = $5, departamento = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
-          [nome, email, permissao, status, telefone, departamento, id],
+          [nome, email, permissao.toLowerCase(), status, telefone, departamento, id],
           function (err) {
             if (err) {
               console.error("[UPDATE USER] Erro ao atualizar usuário:", err)
