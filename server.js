@@ -95,13 +95,6 @@ function validarRequisicao(req, res, next) {
 }
 
 // ===== INICIALIZAR BANCO DE DADOS =====
-if (!process.env.DATABASE_URL) {
-  console.error('❌ ERRO: Variável DATABASE_URL não configurada!')
-  console.error('No Render, adicione em Settings > Environment:')
-  console.error('DATABASE_URL=postgresql://...')
-  process.exit(1)
-}
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
@@ -112,10 +105,9 @@ pool.on('error', (err) => {
 })
 
 pool.on('connect', () => {
-  console.log('✓ Banco de dados conectado')
+  console.log('✓ PostgreSQL conectado')
 })
 
-// ===== WRAPPER FUNÇÕES PARA COMPATIBILIDADE =====
 const db = {
   get: (sql, params, callback) => {
     pool.query(sql, params, (err, result) => {
@@ -255,7 +247,7 @@ async function seedDefaultUsers() {
   try {
     const result = await pool.query("SELECT COUNT(*) as count FROM usuarios")
     const count = parseInt(result.rows[0].count)
-    
+
     if (count === 0) {
       console.log("📝 Criando usuários padrão...")
       for (const usuario of usuariosPadrao) {
@@ -271,11 +263,11 @@ async function seedDefaultUsers() {
       console.log("✓ Usuários padrão criados com sucesso!")
     }
   } catch (error) {
-    console.error("Erro ao criar usuários padrão:", error.message)
+    console.error("❌ Erro ao criar usuários padrão:", error.message)
   }
 }
 
-setTimeout(() => seedDefaultUsers(), 1000)
+setTimeout(() => seedDefaultUsers(), 2000)
 
 // ===== ROTA DE AUTENTICAÇÃO (LOGIN) =====
 app.post(
