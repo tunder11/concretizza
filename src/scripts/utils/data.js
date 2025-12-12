@@ -35,26 +35,29 @@ function obterUsuarioLogado() {
   return usuarioStr ? JSON.parse(usuarioStr) : null
 }
 
-function obterPermissao(usuario, recurso, acao) {
-  if (!usuario) return false
-  
-  const cargo = usuario.cargo?.toLowerCase()
-  
-  if (cargo === "head-admin") return true
-  
-  if (cargo === "admin") {
-    if (recurso === "usuarios" && acao === "delete") return true
-    if (recurso === "usuarios" && acao === "update") return true
-    if (recurso === "clientes") return true
+function obterPermissao(usuario, modulo, acao) {
+  if (!usuario || !usuario.cargo) return false
+  const PERMISSIONS = {
+    'head-admin': {
+      clientes: ['create', 'read', 'update', 'delete'],
+      usuarios: ['create', 'read', 'update', 'delete', 'manage-admins'],
+      logs: ['read'],
+    },
+    admin: {
+      clientes: ['create', 'read', 'update', 'delete'],
+      usuarios: ['create', 'read', 'update', 'delete'],
+      logs: ['read'],
+    },
+    editor: {
+      clientes: ['create', 'read', 'update', 'delete'],
+      usuarios: ['read'],
+    },
+    visualizar: {
+      clientes: ['read'],
+      usuarios: [],
+    },
   }
-  
-  if (cargo === "editor") {
-    if (recurso === "clientes" && (acao === "create" || acao === "update")) return true
-  }
-  
-  if (cargo === "visualizar" || cargo === "visualizador") {
-    if (acao === "read") return true
-  }
-  
-  return false
+  const perms = PERMISSIONS[usuario.cargo.toLowerCase()]
+  if (!perms) return false
+  return perms[modulo]?.includes(acao) || false
 }

@@ -453,7 +453,7 @@ app.put(
 app.delete(
   "/api/clientes/:id",
   autenticar,
-  autorizar("admin", "head-admin"),
+  autorizar("admin", "head-admin", "editor"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
   (req, res) => {
