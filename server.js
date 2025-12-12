@@ -110,6 +110,13 @@ pool.on('connect', () => {
 
 const db = {
   get: (sql, params, callback) => {
+    if (typeof params === 'function') {
+      callback = params
+      params = []
+    }
+    if (!callback) {
+      callback = () => {}
+    }
     pool.query(sql, params, (err, result) => {
       if (err) return callback(err)
       callback(null, result.rows[0])
@@ -120,6 +127,9 @@ const db = {
       callback = params
       params = []
     }
+    if (!callback) {
+      callback = () => {}
+    }
     pool.query(sql, params, (err, result) => {
       if (err) return callback(err)
       callback(null, result.rows)
@@ -129,6 +139,9 @@ const db = {
     if (typeof params === 'function') {
       callback = params
       params = []
+    }
+    if (!callback) {
+      callback = () => {}
     }
     pool.query(sql, params, (err, result) => {
       if (err) return callback(err)
