@@ -24,11 +24,11 @@ const usuariosPadrao = [
     permissao: "admin"
   },
   {
-    nome: "Editor",
-    email: "editor@concretizza.com",
-    username: "editor",
+    nome: "Corretor(a)",
+    email: "corretor@concretizza.com",
+    username: "corretor",
     password: "123456",
-    permissao: "editor"
+    permissao: "corretor"
   },
   {
     nome: "Visualizador",

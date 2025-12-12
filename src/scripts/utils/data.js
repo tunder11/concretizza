@@ -48,7 +48,7 @@ function obterPermissao(usuario, modulo, acao) {
       usuarios: ['create', 'read', 'update', 'delete'],
       logs: ['read'],
     },
-    editor: {
+    corretor: {
       clientes: ['create', 'read', 'update', 'delete'],
       usuarios: ['read'],
     },

@@ -154,17 +154,17 @@ function atualizarPaginacao() {
 function atualizarEstatisticas() {
   const totalUsuarios = usuarios.length
   const totalAdmins = usuarios.filter(u => u.permissao?.toLowerCase() === "admin" || u.permissao?.toLowerCase() === "head-admin").length
-  const totalEditores = usuarios.filter(u => u.permissao?.toLowerCase() === "editor").length
+  const totalCorretores = usuarios.filter(u => u.permissao?.toLowerCase() === "corretor").length
   const usuariosAtivos = usuarios.filter(u => u.status?.toLowerCase() === "ativo").length
 
   const totalElem = document.getElementById("totalUsuarios")
   const adminsElem = document.getElementById("totalAdmins")
-  const editoresElem = document.getElementById("totalEditores")
+  const corretoresElem = document.getElementById("totalCorretores")
   const ativosElem = document.getElementById("usuariosAtivos")
 
   if (totalElem) totalElem.textContent = totalUsuarios
   if (adminsElem) adminsElem.textContent = totalAdmins
-  if (editoresElem) editoresElem.textContent = totalEditores
+  if (corretoresElem) corretoresElem.textContent = totalCorretores
   if (ativosElem) ativosElem.textContent = usuariosAtivos
 }
 
@@ -371,7 +371,7 @@ async function salvarUsuario() {
       return
     }
 
-    if (cargoLogado === "editor") {
+    if (cargoLogado === "corretor") {
       mostrarNotificacao("Você não tem permissão para editar usuários", "aviso")
       return
     }
@@ -381,7 +381,7 @@ async function salvarUsuario() {
       return
     }
 
-    if (cargoLogado === "editor") {
+    if (cargoLogado === "corretor") {
       mostrarNotificacao("Você não tem permissão para criar usuários", "aviso")
       return
     }
@@ -453,7 +453,7 @@ function atualizarOpcoesCargo() {
         opcao.disabled = true
       }
     })
-  } else if (cargoLogado === "editor") {
+  } else if (cargoLogado === "corretor") {
     opcoes.forEach(opcao => {
       if (opcao.value) opcao.disabled = true
     })
@@ -543,7 +543,7 @@ function formatarCargo(cargo) {
   const map = {
     "head-admin": "Head Admin",
     admin: "Admin",
-    editor: "Editor",
+    corretor: "Corretor(a)",
     visualizar: "Visualizar",
     visualizador: "Visualizar"
   }

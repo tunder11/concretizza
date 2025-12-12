@@ -254,7 +254,7 @@ function formatarCargo(cargo) {
   const map = {
     "head-admin": "Head Admin",
     admin: "Admin",
-    editor: "Editor",
+    corretor: "Corretor(a)",
     visualizar: "Visualizar"
   }
   return map[cargo?.toLowerCase()] || (cargo ? cargo.charAt(0).toUpperCase() + cargo.slice(1) : "")

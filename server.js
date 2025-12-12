@@ -241,11 +241,11 @@ const usuariosPadrao = [
     permissao: "admin"
   },
   {
-    nome: "Editor",
-    email: "editor@concretizza.com",
-    username: "editor",
+    nome: "Corretor(a)",
+    email: "corretor@concretizza.com",
+    username: "corretor",
     password: "123456",
-    permissao: "editor"
+    permissao: "corretor"
   },
   {
     nome: "Visualizador",
@@ -365,7 +365,7 @@ app.post(
 
       db.run(
         "INSERT INTO usuarios (nome, email, username, senha, permissao, status) VALUES ($1, $2, $3, $4, $5, $6)",
-        [nome, email, username, senhaHash, "editor", "ativo"],
+        [nome, email, username, senhaHash, "corretor", "ativo"],
         function (err) {
           if (err) {
             if (err.message.includes("UNIQUE")) {
@@ -395,7 +395,7 @@ app.get("/api/clientes", autenticar, (req, res) => {
 app.post(
   "/api/clientes",
   autenticar,
-  autorizar("admin", "head-admin", "editor"),
+  autorizar("admin", "head-admin", "corretor"),
   [
     body("nome").trim().notEmpty().withMessage("Nome é obrigatório"),
     body("telefone").trim().notEmpty().withMessage("Telefone é obrigatório"),
@@ -427,7 +427,7 @@ app.post(
 app.put(
   "/api/clientes/:id",
   autenticar,
-  autorizar("admin", "head-admin", "editor"),
+  autorizar("admin", "head-admin", "corretor"),
   [
     param("id").isInt().withMessage("ID inválido"),
     body("nome").optional().trim().notEmpty().withMessage("Nome não pode estar vazio"),
@@ -453,7 +453,7 @@ app.put(
 app.delete(
   "/api/clientes/:id",
   autenticar,
-  autorizar("admin", "head-admin", "editor"),
+  autorizar("admin", "head-admin", "corretor"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
   (req, res) => {

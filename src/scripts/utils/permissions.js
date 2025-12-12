@@ -11,7 +11,7 @@ const PERMISSIONS = {
     usuarios: ['create', 'read', 'update', 'delete'],
     logs: ['read'],
   },
-  editor: {
+  corretor: {
     clientes: ['create', 'read', 'update', 'delete'],
     usuarios: ['read'],
   },
@@ -106,7 +106,7 @@ function formatarCargo(cargo) {
   const mapeamento = {
     'head-admin': 'Head-Admin',
     'admin': 'Admin',
-    'editor': 'Editor',
+    'corretor': 'Corretor(a)',
     'visualizar': 'Visualizar',
     'visualizador': 'Visualizar',
     'user': 'User'
