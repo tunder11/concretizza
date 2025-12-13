@@ -50,6 +50,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, "src")))
 app.use("/src", express.static(path.join(__dirname, "src")))
+app.use(express.static(path.join(__dirname)))
 
 // ===== MIDDLEWARE DE AUTENTICAÇÃO JWT =====
 function autenticar(req, res, next) {
