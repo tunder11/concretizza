@@ -370,6 +370,32 @@
         </div>
     </div>
 
+    <div id="modalConfirmacaoLogout" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Saída</h2>
+                <button class="modal-close" id="closeConfirmacaoLogout">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </div>
+                    <h3>Deseja realmente sair?</h3>
+                    <p>Você será desconectado da sua conta.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelarLogout">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button class="btn-danger" id="btnConfirmarLogout">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="toastNotification" class="toast"></div>
 
     <script src="/scripts/utils/api.js?v=2"></script>

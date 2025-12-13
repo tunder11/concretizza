@@ -171,10 +171,27 @@ function configurarEventos() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault()
-      if (confirm("Deseja realmente sair?")) {
-        fazerLogout()
-      }
+      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
     })
+  }
+
+  const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
+  if (closeConfirmacaoLogout) {
+    closeConfirmacaoLogout.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+    })
+  }
+
+  const btnCancelarLogout = document.getElementById("btnCancelarLogout")
+  if (btnCancelarLogout) {
+    btnCancelarLogout.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+    })
+  }
+
+  const btnConfirmarLogout = document.getElementById("btnConfirmarLogout")
+  if (btnConfirmarLogout) {
+    btnConfirmarLogout.addEventListener("click", fazerLogout)
   }
 
   const btnNovoCliente = document.getElementById("btnNovoCliente")
