@@ -784,6 +784,14 @@ body {
   color: #ff6464;
 }
 
+#modalConfirmacaoLogout .confirmation-icon {
+  background: rgba(100, 200, 100, 0.1);
+}
+
+#modalConfirmacaoLogout .confirmation-icon i {
+  color: #64c864;
+}
+
 .confirmation-content p {
   margin: var(--spacing-sm) 0;
   color: var(--color-white);
