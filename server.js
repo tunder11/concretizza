@@ -213,13 +213,37 @@ async function initializeTables() {
         acao TEXT NOT NULL,
         modulo TEXT NOT NULL,
         descricao TEXT,
+        usuario_afetado TEXT,
         ip_address TEXT,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
-    console.log("✓ Tabela logs_auditoria criada")
+    
+    // Garantir que a coluna usuario_afetado exista (migração)
+    try {
+      await pool.query("ALTER TABLE logs_auditoria ADD COLUMN IF NOT EXISTS usuario_afetado TEXT")
+    } catch (e) {
+      console.log("Nota: Coluna usuario_afetado já existe ou erro ao adicionar:", e.message)
+    }
+
+    console.log("✓ Tabela logs_auditoria criada/verificada")
   } catch (error) {
     console.error("Erro ao criar tabelas:", error.message)
+  }
+}
+
+// ===== FUNÇÃO DE LOG =====
+async function registrarLog(usuarioId, acao, modulo, descricao, usuarioAfetado = null, req = null) {
+  try {
+    const ip = req ? (req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0]?.trim()) : null
+    
+    await pool.query(
+      "INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, ip_address) VALUES ($1, $2, $3, $4, $5, $6)",
+      [usuarioId, acao, modulo, descricao, usuarioAfetado, ip]
+    )
+    console.log(`[LOG] ${acao} - ${modulo}: ${descricao}`)
+  } catch (err) {
+    console.error("[LOG] Erro ao registrar log:", err.message)
   }
 }
 
@@ -333,6 +357,8 @@ app.post(
 
           db.run("UPDATE usuarios SET ultimoAcesso = $1 WHERE id = $2", [new Date().toISOString(), user.id])
 
+          registrarLog(user.id, "LOGIN", "Autenticação", "Usuário realizou login", null, req)
+
           res.json({
             token,
             usuario: {
@@ -374,6 +400,8 @@ app.post(
             }
             return res.status(500).json({ error: "Erro ao criar usuário" })
           }
+          
+          registrarLog(this.lastID, "CRIAR", "Usuários", `Auto-cadastro: ${username}`, null, req)
           
           res.status(201).json({ id: this.lastID, message: "Usuário criado com sucesso" })
         }
@@ -419,6 +447,7 @@ app.post(
           return res.status(500).json({ error: "Erro ao criar cliente: " + err.message })
         }
         console.log("[CLIENTES] Cliente criado com sucesso, ID:", this.lastID)
+        registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, null, req)
         res.status(201).json({ id: this.lastID, message: "Cliente criado com sucesso" })
       }
     )
@@ -445,6 +474,7 @@ app.put(
       function (err) {
         if (err) return res.status(500).json({ error: "Erro ao atualizar cliente" })
         if (this.changes === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+        registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nome || id}`, null, req)
         res.json({ success: true, message: "Cliente atualizado com sucesso" })
       }
     )
@@ -463,6 +493,7 @@ app.delete(
     db.run("DELETE FROM clientes WHERE id = $1", [id], function (err) {
       if (err) return res.status(500).json({ error: "Erro ao deletar cliente" })
       if (this.changes === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+      registrarLog(req.usuario.id, "DELETAR", "Clientes", `Cliente deletado: ${id}`, null, req)
       res.json({ success: true, message: "Cliente deletado com sucesso" })
     })
   }
@@ -517,6 +548,7 @@ app.post(
             }
             return res.status(500).json({ error: "Erro ao criar usuário" })
           }
+          registrarLog(req.usuario.id, "CRIAR", "Usuários", `Usuário criado: ${username}`, null, req)
           res.status(201).json({ id: this.lastID, message: "Usuário criado com sucesso" })
         }
       )
@@ -562,6 +594,7 @@ app.put(
                 return res.status(500).json({ error: "Erro ao atualizar usuário: " + err.message })
               }
               if (this.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" })
+              registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, null, req)
               res.json({ success: true, message: "Usuário atualizado com sucesso" })
             }
           )
@@ -579,6 +612,7 @@ app.put(
               return res.status(500).json({ error: "Erro ao atualizar usuário: " + err.message })
             }
             if (this.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" })
+            registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, null, req)
             res.json({ success: true, message: "Usuário atualizado com sucesso" })
           }
         )
@@ -648,6 +682,7 @@ app.delete(
       await client.query('COMMIT')
       
       console.log("[DELETE USUARIO] Usuário e dados relacionados processados com sucesso")
+      registrarLog(req.usuario.id, "DELETAR", "Usuários", `Usuário deletado: ${usuarioId}`, null, req)
       res.json({ success: true, message: "Usuário deletado com sucesso" })
 
     } catch (err) {
@@ -659,6 +694,37 @@ app.delete(
     }
   }
 )
+
+// ===== ROTAS DE LOGS =====
+app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), (req, res) => {
+  db.all(
+    `SELECT l.*, u.nome as usuario_nome, u.username as usuario_username 
+     FROM logs_auditoria l 
+     LEFT JOIN usuarios u ON l.usuario_id = u.id 
+     ORDER BY l.criado_em DESC`,
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Erro ao buscar logs" })
+      
+      // Format logs for frontend
+      const logsFormatados = rows.map(log => {
+        const data = new Date(log.criado_em)
+        return {
+          id: log.id,
+          acao: log.acao,
+          modulo: log.modulo,
+          descricao: log.descricao,
+          usuarioLogado: log.usuario_nome || log.usuario_username || "Sistema/Deletado",
+          usuarioAfetado: log.usuario_afetado,
+          dataFormatada: data.toLocaleDateString('pt-BR'),
+          horaFormatada: data.toLocaleTimeString('pt-BR'),
+          ip: log.ip_address
+        }
+      })
+      
+      res.json(logsFormatados)
+    }
+  )
+})
 
 // ===== SERVIR ARQUIVO RAIZ =====
 app.get("/", (req, res) => {
