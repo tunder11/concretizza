@@ -357,7 +357,7 @@ app.post(
 
           db.run("UPDATE usuarios SET ultimoAcesso = $1 WHERE id = $2", [new Date().toISOString(), user.id])
 
-          registrarLog(user.id, "LOGIN", "Autenticação", "Usuário realizou login", null, req)
+          registrarLog(user.id, "LOGIN", "Autenticação", "Usuário realizou login", user.nome, req)
 
           res.json({
             token,
@@ -401,7 +401,7 @@ app.post(
             return res.status(500).json({ error: "Erro ao criar usuário" })
           }
           
-          registrarLog(this.lastID, "CRIAR", "Usuários", `Auto-cadastro: ${username}`, null, req)
+          registrarLog(this.lastID, "CRIAR", "Usuários", `Auto-cadastro: ${username}`, nome, req)
           
           res.status(201).json({ id: this.lastID, message: "Usuário criado com sucesso" })
         }
@@ -433,24 +433,24 @@ app.post(
     body("status").trim().notEmpty().withMessage("Status é obrigatório")
   ],
   validarRequisicao,
-  (req, res) => {
+  async (req, res) => {
     const { nome, telefone, email, interesse, valor, status, observacoes, data } = req.body
     
     console.log("[CLIENTES] Criando novo cliente:", { nome, telefone, email, interesse, valor, status, observacoes, data })
     
-    db.run(
-      "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-      [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, data, req.usuario.id],
-      function (err) {
-        if (err) {
-          console.error("[CLIENTES] Erro ao inserir cliente:", err)
-          return res.status(500).json({ error: "Erro ao criar cliente: " + err.message })
-        }
-        console.log("[CLIENTES] Cliente criado com sucesso, ID:", this.lastID)
-        registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, null, req)
-        res.status(201).json({ id: this.lastID, message: "Cliente criado com sucesso" })
-      }
-    )
+    try {
+      const result = await pool.query(
+        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, data, req.usuario.id]
+      )
+      const clienteId = result.rows[0]?.id
+      console.log("[CLIENTES] Cliente criado com sucesso, ID:", clienteId)
+      await registrarLog(req.usuario.id, "CRIAR", "Clientes", `Cliente criado: ${nome}`, nome, req)
+      res.status(201).json({ id: clienteId, message: "Cliente criado com sucesso" })
+    } catch (err) {
+      console.error("[CLIENTES] Erro ao inserir cliente:", err)
+      res.status(500).json({ error: "Erro ao criar cliente: " + err.message })
+    }
   }
 )
 
@@ -464,20 +464,22 @@ app.put(
     body("email").optional({ checkFalsy: true }).trim().isEmail().withMessage("Email deve ser válido se informado")
   ],
   validarRequisicao,
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params
     const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
     
-    db.run(
-      "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
-      [nome, telefone, email, interesse, valor, status, observacoes, id],
-      function (err) {
-        if (err) return res.status(500).json({ error: "Erro ao atualizar cliente" })
-        if (this.changes === 0) return res.status(404).json({ error: "Cliente não encontrado" })
-        registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nome || id}`, null, req)
-        res.json({ success: true, message: "Cliente atualizado com sucesso" })
-      }
-    )
+    try {
+      const result = await pool.query(
+        "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
+        [nome, telefone, email, interesse, valor, status, observacoes, id]
+      )
+      if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+      await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nome || id}`, nome || id, req)
+      res.json({ success: true, message: "Cliente atualizado com sucesso" })
+    } catch (err) {
+      console.error("[CLIENTES PUT] Erro ao atualizar cliente:", err)
+      res.status(500).json({ error: "Erro ao atualizar cliente: " + err.message })
+    }
   }
 )
 
@@ -487,15 +489,26 @@ app.delete(
   autorizar("admin", "head-admin", "corretor"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params
     
-    db.run("DELETE FROM clientes WHERE id = $1", [id], function (err) {
-      if (err) return res.status(500).json({ error: "Erro ao deletar cliente" })
-      if (this.changes === 0) return res.status(404).json({ error: "Cliente não encontrado" })
-      registrarLog(req.usuario.id, "DELETAR", "Clientes", `Cliente deletado: ${id}`, null, req)
+    try {
+      const clienteResult = await pool.query("SELECT nome FROM clientes WHERE id = $1", [id])
+      const cliente = clienteResult.rows[0]
+      const clienteNome = cliente?.nome || id
+      
+      const deleteResult = await pool.query("DELETE FROM clientes WHERE id = $1", [id])
+      
+      if (deleteResult.rowCount === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+      
+      await registrarLog(req.usuario.id, "DELETAR", "Clientes", `Cliente deletado: ${id}`, clienteNome, req)
       res.json({ success: true, message: "Cliente deletado com sucesso" })
-    })
+    } catch (error) {
+      console.error("[CLIENTES DELETE] Erro ao deletar cliente:", error)
+      res.status(500).json({ error: "Erro ao deletar cliente: " + error.message })
+    }
   }
 )
 
@@ -527,7 +540,7 @@ app.post(
     body("permissao").trim().notEmpty().withMessage("Permissão é obrigatória")
   ],
   validarRequisicao,
-  (req, res) => {
+  async (req, res) => {
     const { nome, email, username, password, permissao, status, telefone, departamento } = req.body
     const cargoUsuarioLogado = req.usuario.cargo.toLowerCase()
 
@@ -535,24 +548,28 @@ app.post(
       return res.status(403).json({ error: "Admin não pode criar usuários com cargo admin ou superior" })
     }
 
-    bcrypt.hash(password, BCRYPT_ROUNDS, (err, senhaHash) => {
-      if (err) return res.status(500).json({ error: "Erro ao processar senha" })
+    try {
+      const senhaHash = await new Promise((resolve, reject) => {
+        bcrypt.hash(password, BCRYPT_ROUNDS, (err, hash) => {
+          if (err) reject(err)
+          else resolve(hash)
+        })
+      })
 
-      db.run(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null],
-        function (err) {
-          if (err) {
-            if (err.message.includes("UNIQUE")) {
-              return res.status(400).json({ error: "Email ou username já cadastrado" })
-            }
-            return res.status(500).json({ error: "Erro ao criar usuário" })
-          }
-          registrarLog(req.usuario.id, "CRIAR", "Usuários", `Usuário criado: ${username}`, null, req)
-          res.status(201).json({ id: this.lastID, message: "Usuário criado com sucesso" })
-        }
+      const result = await pool.query(
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null]
       )
-    })
+      const usuarioId = result.rows[0]?.id
+      await registrarLog(req.usuario.id, "CRIAR", "Usuários", `Usuário criado: ${username}`, nome, req)
+      res.status(201).json({ id: usuarioId, message: "Usuário criado com sucesso" })
+    } catch (err) {
+      console.error("[USUARIOS POST] Erro ao criar usuário:", err)
+      if (err.message?.includes("UNIQUE")) {
+        return res.status(400).json({ error: "Email ou username já cadastrado" })
+      }
+      res.status(500).json({ error: "Erro ao criar usuário: " + err.message })
+    }
   }
 )
 
@@ -562,14 +579,16 @@ app.put(
   autorizar("head-admin", "admin"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params
     const { nome, email, password, permissao, status, telefone, departamento } = req.body
     const cargoUsuarioLogado = req.usuario.cargo.toLowerCase()
     const usuarioIdSendoEditado = parseInt(id)
 
-    db.get("SELECT permissao FROM usuarios WHERE id = $1", [usuarioIdSendoEditado], (err, usuarioAlvo) => {
-      if (err) return res.status(500).json({ error: "Erro ao verificar usuário" })
+    try {
+      const userResult = await pool.query("SELECT permissao, nome as nome_atual FROM usuarios WHERE id = $1", [usuarioIdSendoEditado])
+      const usuarioAlvo = userResult.rows[0]
+
       if (!usuarioAlvo) return res.status(404).json({ error: "Usuário não encontrado" })
 
       const cargoAlvo = usuarioAlvo.permissao.toLowerCase()
@@ -578,46 +597,39 @@ app.put(
         return res.status(403).json({ error: "Admin não pode editar usuários com cargo igual ou superior" })
       }
 
+      let senhaHash = null
       if (password) {
-        bcrypt.hash(password, BCRYPT_ROUNDS, (err, senhaHash) => {
-          if (err) return res.status(500).json({ error: "Erro ao processar senha" })
-          
-          db.run(
-            "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
-            [nome, email, senhaHash, permissao.toLowerCase(), status, telefone, departamento, id],
-            function (err) {
-              if (err) {
-                console.error("[UPDATE USER] Erro ao atualizar usuário com senha:", err)
-                if (err.message.includes("UNIQUE")) {
-                  return res.status(400).json({ error: "Email já cadastrado" })
-                }
-                return res.status(500).json({ error: "Erro ao atualizar usuário: " + err.message })
-              }
-              if (this.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" })
-              registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, null, req)
-              res.json({ success: true, message: "Usuário atualizado com sucesso" })
-            }
-          )
+        senhaHash = await new Promise((resolve, reject) => {
+          bcrypt.hash(password, BCRYPT_ROUNDS, (err, hash) => {
+            if (err) reject(err)
+            else resolve(hash)
+          })
         })
+      }
+
+      let result
+      if (password) {
+        result = await pool.query(
+          "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
+          [nome, email, senhaHash, permissao.toLowerCase(), status, telefone, departamento, id]
+        )
       } else {
-        db.run(
+        result = await pool.query(
           "UPDATE usuarios SET nome = $1, email = $2, permissao = $3, status = $4, telefone = $5, departamento = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
-          [nome, email, permissao.toLowerCase(), status, telefone, departamento, id],
-          function (err) {
-            if (err) {
-              console.error("[UPDATE USER] Erro ao atualizar usuário:", err)
-              if (err.message.includes("UNIQUE")) {
-                return res.status(400).json({ error: "Email já cadastrado" })
-              }
-              return res.status(500).json({ error: "Erro ao atualizar usuário: " + err.message })
-            }
-            if (this.changes === 0) return res.status(404).json({ error: "Usuário não encontrado" })
-            registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, null, req)
-            res.json({ success: true, message: "Usuário atualizado com sucesso" })
-          }
+          [nome, email, permissao.toLowerCase(), status, telefone, departamento, id]
         )
       }
-    })
+
+      if (result.rowCount === 0) return res.status(404).json({ error: "Usuário não encontrado" })
+      await registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, nome || id, req)
+      res.json({ success: true, message: "Usuário atualizado com sucesso" })
+    } catch (err) {
+      console.error("[UPDATE USER] Erro ao atualizar usuário:", err)
+      if (err.message?.includes("UNIQUE")) {
+        return res.status(400).json({ error: "Email já cadastrado" })
+      }
+      res.status(500).json({ error: "Erro ao atualizar usuário: " + err.message })
+    }
   }
 )
 
@@ -643,7 +655,7 @@ app.delete(
 
     try {
       // Verificar usuário alvo e permissões
-      const userResult = await client.query("SELECT permissao FROM usuarios WHERE id = $1", [usuarioId])
+      const userResult = await client.query("SELECT permissao, nome FROM usuarios WHERE id = $1", [usuarioId])
       const usuarioAlvo = userResult.rows[0]
 
       if (!usuarioAlvo) {
@@ -682,7 +694,7 @@ app.delete(
       await client.query('COMMIT')
       
       console.log("[DELETE USUARIO] Usuário e dados relacionados processados com sucesso")
-      registrarLog(req.usuario.id, "DELETAR", "Usuários", `Usuário deletado: ${usuarioId}`, null, req)
+      await registrarLog(req.usuario.id, "DELETAR", "Usuários", `Usuário deletado: ${usuarioId}`, usuarioAlvo?.nome || usuarioId, req)
       res.json({ success: true, message: "Usuário deletado com sucesso" })
 
     } catch (err) {
@@ -696,34 +708,35 @@ app.delete(
 )
 
 // ===== ROTAS DE LOGS =====
-app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), (req, res) => {
-  db.all(
-    `SELECT l.*, u.nome as usuario_nome, u.username as usuario_username 
-     FROM logs_auditoria l 
-     LEFT JOIN usuarios u ON l.usuario_id = u.id 
-     ORDER BY l.criado_em DESC`,
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: "Erro ao buscar logs" })
-      
-      // Format logs for frontend
-      const logsFormatados = rows.map(log => {
-        const data = new Date(log.criado_em)
-        return {
-          id: log.id,
-          acao: log.acao,
-          modulo: log.modulo,
-          descricao: log.descricao,
-          usuarioLogado: log.usuario_nome || log.usuario_username || "Sistema/Deletado",
-          usuarioAfetado: log.usuario_afetado,
-          dataFormatada: data.toLocaleDateString('pt-BR'),
-          horaFormatada: data.toLocaleTimeString('pt-BR'),
-          ip: log.ip_address
-        }
-      })
-      
-      res.json(logsFormatados)
-    }
-  )
+app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT l.*, u.nome as usuario_nome, u.username as usuario_username 
+       FROM logs_auditoria l 
+       LEFT JOIN usuarios u ON l.usuario_id = u.id 
+       ORDER BY l.criado_em DESC`
+    )
+    
+    const logsFormatados = result.rows.map(log => {
+      const data = new Date(log.criado_em)
+      return {
+        id: log.id,
+        acao: log.acao,
+        modulo: log.modulo,
+        descricao: log.descricao,
+        usuarioLogado: log.usuario_nome || log.usuario_username || "Sistema/Deletado",
+        usuarioAfetado: log.usuario_afetado,
+        dataFormatada: data.toLocaleDateString('pt-BR'),
+        horaFormatada: data.toLocaleTimeString('pt-BR'),
+        ip: log.ip_address
+      }
+    })
+    
+    res.json(logsFormatados)
+  } catch (err) {
+    console.error("[LOGS] Erro ao buscar logs:", err)
+    res.status(500).json({ error: "Erro ao buscar logs: " + err.message })
+  }
 })
 
 // ===== SERVIR ARQUIVO RAIZ =====

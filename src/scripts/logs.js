@@ -5,6 +5,8 @@ document.addEventListener("DOMContentLoaded", () => {
   carregarDadosUsuario()
   carregarLogs()
   configurarEventos()
+  
+  setInterval(carregarLogs, 5000)
 })
 
 function verificarAutenticacao() {

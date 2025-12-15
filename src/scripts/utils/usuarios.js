@@ -303,6 +303,15 @@ function configurarEventos() {
     })
   }
 
+  const modalConfirmacaoUsuario = document.getElementById("modalConfirmacaoUsuario")
+  if (modalConfirmacaoUsuario) {
+    modalConfirmacaoUsuario.addEventListener("click", (e) => {
+      if (e.target === modalConfirmacaoUsuario) {
+        modalConfirmacaoUsuario.style.display = "none"
+      }
+    })
+  }
+
   const selectAll = document.getElementById("selectAll")
   if (selectAll) {
     selectAll.addEventListener("change", (e) => {
@@ -422,7 +431,7 @@ async function salvarUsuario() {
 
       console.log("[USUARIOS] Atualizando usuário:", usuarioEmEdicao, usuario)
       await atualizarUsuario(usuarioEmEdicao, usuario)
-      registrarLog("EDITAR", "USUARIOS", `Usuário "${nome}" (${permissao}) atualizado`)
+      registrarLog("EDITAR", "USUARIOS", `Usuário "${nome}" (${permissao}) atualizado`, nome)
       mostrarNotificacao("Usuário atualizado com sucesso!", "sucesso")
     } else {
       const usuario = {
@@ -438,7 +447,7 @@ async function salvarUsuario() {
 
       console.log("[USUARIOS] Criando novo usuário:", usuario)
       await criarUsuario(usuario)
-      registrarLog("CRIAR", "USUARIOS", `Novo usuário "${nome}" (${permissao}) criado`)
+      registrarLog("CRIAR", "USUARIOS", `Novo usuário "${nome}" (${permissao}) criado`, nome)
       mostrarNotificacao("Usuário criado com sucesso!", "sucesso")
     }
 
@@ -540,7 +549,7 @@ async function excluirUsuario(id) {
       btnConfirmar.textContent = "Excluindo..."
     }
     await deletarUsuario(id)
-    registrarLog("DELETAR", "USUARIOS", `Usuário "${usuario?.nome}" deletado`)
+    registrarLog("DELETAR", "USUARIOS", `Usuário "${usuario?.nome}" deletado`, usuario?.nome)
     console.log("[USUARIOS] Usuário deletado com sucesso")
     document.getElementById("modalConfirmacaoUsuario").style.display = "none"
     mostrarNotificacao(`Usuário "${usuario?.nome}" foi excluído com sucesso!`, "sucesso")
@@ -635,7 +644,7 @@ async function executarExclusaoEmMassaUsuarios() {
     for (const id of usuariosSelecionados) {
       const usr = usuarios.find((u) => u.id === id)
       await deletarUsuario(id)
-      registrarLog("DELETAR", "USUARIOS", `Usuário "${usr?.nome}" deletado (em massa)`)
+      registrarLog("DELETAR", "USUARIOS", `Usuário "${usr?.nome}" deletado (em massa)`, usr?.nome)
     }
     
     document.getElementById("modalConfirmacaoUsuario").style.display = "none"

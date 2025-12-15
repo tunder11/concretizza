@@ -315,6 +315,15 @@ function configurarEventos() {
       document.getElementById("modalConfirmacao").style.display = "none"
     })
   }
+
+  const modalConfirmacao = document.getElementById("modalConfirmacao")
+  if (modalConfirmacao) {
+    modalConfirmacao.addEventListener("click", (e) => {
+      if (e.target === modalConfirmacao) {
+        modalConfirmacao.style.display = "none"
+      }
+    })
+  }
 }
 
 function filtrarClientes() {
@@ -374,11 +383,11 @@ async function salvarCliente() {
 
     if (clienteEmEdicao) {
       await atualizarCliente(clienteEmEdicao, cliente)
-      registrarLog("EDITAR", "CLIENTES", `Cliente "${nome}" atualizado`)
+      registrarLog("EDITAR", "CLIENTES", `Cliente "${nome}" atualizado`, nome)
       mostrarNotificacao("Cliente atualizado com sucesso!", "sucesso")
     } else {
       await criarCliente(cliente)
-      registrarLog("CRIAR", "CLIENTES", `Novo cliente "${nome}" criado`)
+      registrarLog("CRIAR", "CLIENTES", `Novo cliente "${nome}" criado`, nome)
       mostrarNotificacao("Cliente criado com sucesso!", "sucesso")
     }
 
@@ -445,7 +454,7 @@ async function excluirCliente(id) {
       btnConfirmar.disabled = true
     }
     await deletarCliente(id)
-    registrarLog("DELETAR", "CLIENTES", `Cliente "${cliente?.nome}" deletado`)
+    registrarLog("DELETAR", "CLIENTES", `Cliente "${cliente?.nome}" deletado`, cliente?.nome)
     mostrarNotificacao("Cliente deletado com sucesso!", "sucesso")
     document.getElementById("modalConfirmacao").style.display = "none"
     await carregarClientes()
@@ -506,7 +515,7 @@ async function executarExclusaoEmMassa() {
     for (const id of clientesSelecionados) {
       const cliente = clientes.find((c) => c.id === id)
       await deletarCliente(id)
-      registrarLog("DELETAR", "CLIENTES", `Cliente "${cliente?.nome}" deletado (em massa)`)
+      registrarLog("DELETAR", "CLIENTES", `Cliente "${cliente?.nome}" deletado (em massa)`, cliente?.nome)
     }
     document.getElementById("modalConfirmacao").style.display = "none"
     mostrarNotificacao("Clientes deletados com sucesso!", "sucesso")
