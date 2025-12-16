@@ -193,12 +193,22 @@ async function initializeTables() {
     
     // Garantir que a coluna usuario_afetado exista (migração)
     try {
-      await dbQuery("ALTER TABLE logs_auditoria ADD COLUMN IF NOT EXISTS usuario_afetado TEXT")
+      await dbQuery("ALTER TABLE logs_auditoria ADD COLUMN usuario_afetado TEXT")
     } catch (e) {
-      console.log(`[${getDataSaoPaulo()}] Nota: Coluna usuario_afetado já existe ou erro ao adicionar:`, e.message)
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna usuario_afetado já existe ou erro ao adicionar:`, e.message)
+      }
     }
 
     console.log(`[${getDataSaoPaulo()}] ✓ Tabela logs_auditoria criada/verificada`)
+
+    try {
+      await dbQuery("ALTER TABLE clientes ADD COLUMN atribuido_a INTEGER REFERENCES usuarios(id)")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna atribuido_a já existe ou erro ao adicionar:`, e.message)
+      }
+    }
   } catch (error) {
     console.error(`[${getDataSaoPaulo()}] Erro ao criar tabelas:`, error.message)
   }
@@ -391,12 +401,12 @@ app.get("/api/clientes", autenticar, (req, res) => {
   const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
   const usuarioId = req.usuario.id
   
-  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, u.nome as cadastrado_por FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id"
+  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
   let params = []
   
   if (isCorretor) {
-    query += " WHERE c.usuario_id = $1"
-    params = [usuarioId]
+    query += " WHERE c.usuario_id = $1 OR c.atribuido_a = $2"
+    params = [usuarioId, usuarioId]
   }
   
   query += " ORDER BY c.data DESC"
@@ -424,13 +434,15 @@ app.post(
   validarRequisicao,
   async (req, res) => {
     const { nome, telefone, email, interesse, valor, status, observacoes, data } = req.body
+    const usuarioResponsavel = req.usuario.id
+    const dataCliente = data || new Date().toISOString().split("T")[0]
     
-    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data })
+    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel })
     
     try {
       const result = await dbQuery(
         "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, data, req.usuario.id]
+        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel]
       )
       const clienteId = result.rows[0]?.id
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
@@ -520,6 +532,47 @@ app.delete(
     } catch (error) {
       console.error("[CLIENTES DELETE] Erro ao deletar cliente:", error)
       res.status(500).json({ error: "Erro ao deletar cliente: " + error.message })
+    }
+  }
+)
+
+app.post(
+  "/api/clientes/:id/atribuir",
+  autenticar,
+  autorizar("admin", "head-admin"),
+  [
+    param("id").isInt().withMessage("ID inválido"),
+    body("atribuido_a").optional({ checkFalsy: true }).isInt().withMessage("ID do usuário inválido")
+  ],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const { atribuido_a } = req.body
+
+    try {
+      const cliente = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [parseInt(id)])
+      if (cliente.rows.length === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+
+      if (atribuido_a) {
+        const usuario = await dbQuery("SELECT id, nome FROM usuarios WHERE id = $1", [parseInt(atribuido_a)])
+        if (usuario.rows.length === 0) {
+          return res.status(404).json({ error: "Usuário não encontrado" })
+        }
+      }
+
+      await dbQuery(
+        "UPDATE clientes SET atribuido_a = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [atribuido_a ? parseInt(atribuido_a) : null, parseInt(id)]
+      )
+
+      const nomeAtribuido = atribuido_a ? (await dbQuery("SELECT nome FROM usuarios WHERE id = $1", [parseInt(atribuido_a)])).rows[0]?.nome : "Ninguém"
+      await registrarLog(req.usuario.id, "ATRIBUIR", "Clientes", `Cliente "${cliente.rows[0].nome}" atribuído a "${nomeAtribuido}"`, cliente.rows[0].nome, req)
+      res.json({ success: true, message: "Cliente atribuído com sucesso" })
+    } catch (error) {
+      console.error("[CLIENTES ATRIBUIR] Erro ao atribuir cliente:", error)
+      res.status(500).json({ error: "Erro ao atribuir cliente: " + error.message })
     }
   }
 )
@@ -690,8 +743,9 @@ app.delete(
         // 1. Remover agendamentos do usuário
         await client.query("DELETE FROM agendamentos WHERE usuario_id = $1", [usuarioId])
 
-        // 2. Desvincular clientes (setar usuario_id = NULL)
+        // 2. Desvincular clientes (setar usuario_id = NULL e atribuido_a = NULL)
         await client.query("UPDATE clientes SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+        await client.query("UPDATE clientes SET atribuido_a = NULL WHERE atribuido_a = $1", [usuarioId])
 
         // 3. Desvincular logs de auditoria
         await client.query("UPDATE logs_auditoria SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
@@ -710,8 +764,9 @@ app.delete(
         // 1. Remover agendamentos do usuário
         await dbQuery("DELETE FROM agendamentos WHERE usuario_id = $1", [usuarioId])
 
-        // 2. Desvincular clientes (setar usuario_id = NULL)
+        // 2. Desvincular clientes (setar usuario_id = NULL e atribuido_a = NULL)
         await dbQuery("UPDATE clientes SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
+        await dbQuery("UPDATE clientes SET atribuido_a = NULL WHERE atribuido_a = $1", [usuarioId])
 
         // 3. Desvincular logs de auditoria
         await dbQuery("UPDATE logs_auditoria SET usuario_id = NULL WHERE usuario_id = $1", [usuarioId])
@@ -798,6 +853,147 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
     res.status(500).json({ error: "Erro ao buscar logs: " + err.message })
   }
 })
+
+// ===== ROTAS DE CORRETORES (APENAS PARA ADMINS) =====
+app.get(
+  "/api/corretores",
+  autenticar,
+  autorizar("head-admin", "admin"),
+  async (req, res) => {
+    try {
+      const corretores = await dbQuery(
+        `SELECT u.id, u.nome, u.email, u.telefone, u.departamento, u.status, COUNT(c.id) as total_clientes
+         FROM usuarios u
+         LEFT JOIN clientes c ON u.id = c.usuario_id
+         WHERE u.permissao = 'corretor'
+         GROUP BY u.id, u.nome, u.email, u.telefone, u.departamento, u.status
+         ORDER BY u.nome`
+      )
+      
+      res.json(corretores.rows || [])
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CORRETORES] Erro ao buscar corretores:`, err)
+      res.status(500).json({ error: "Erro ao buscar corretores: " + err.message })
+    }
+  }
+)
+
+app.get(
+  "/api/corretores/:id/clientes",
+  autenticar,
+  autorizar("head-admin", "admin"),
+  async (req, res) => {
+    try {
+      const { id } = req.params
+      
+      const resultado = await dbQuery(
+        `SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data
+         FROM clientes c
+         WHERE c.atribuido_a = $1
+         ORDER BY c.nome`,
+        [parseInt(id)]
+      )
+      
+      res.json(resultado.rows || [])
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CORRETORES] Erro ao buscar clientes do corretor:`, err)
+      res.status(500).json({ error: "Erro ao buscar clientes do corretor: " + err.message })
+    }
+  }
+)
+
+app.post(
+  "/api/corretores/:corretor_id/clientes/:cliente_id",
+  autenticar,
+  autorizar("head-admin", "admin"),
+  async (req, res) => {
+    try {
+      const { corretor_id, cliente_id } = req.params
+      
+      const clienteVerify = await dbQuery(
+        `SELECT atribuido_a FROM clientes WHERE id = $1`,
+        [cliente_id]
+      )
+      
+      if (clienteVerify.rowCount === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+      
+      if (clienteVerify.rows[0].atribuido_a === parseInt(corretor_id)) {
+        return res.status(400).json({ error: "Este cliente já está atribuído a este corretor" })
+      }
+      
+      const resultado = await dbQuery(
+        `UPDATE clientes SET atribuido_a = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2`,
+        [parseInt(corretor_id), parseInt(cliente_id)]
+      )
+      
+      await dbQuery(
+        `INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao) VALUES ($1, $2, $3, $4)`,
+        [req.usuario.id, "ATRIBUIR_CLIENTE", "CORRETORES", `Cliente ${cliente_id} atribuído ao corretor ${corretor_id}`]
+      )
+      
+      console.log(`[${getDataSaoPaulo()}] [CORRETORES] Cliente ${cliente_id} atribuído ao corretor ${corretor_id} por ${req.usuario.username}`)
+      res.json({ message: "Cliente atribuído com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CORRETORES] Erro ao atribuir cliente:`, err)
+      res.status(500).json({ error: "Erro ao atribuir cliente: " + err.message })
+    }
+  }
+)
+
+app.delete(
+  "/api/corretores/:corretor_id/clientes/:cliente_id",
+  autenticar,
+  autorizar("head-admin", "admin"),
+  async (req, res) => {
+    try {
+      const { corretor_id, cliente_id } = req.params
+      
+      const resultado = await dbQuery(
+        `UPDATE clientes SET atribuido_a = NULL, atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 AND atribuido_a = $2`,
+        [parseInt(cliente_id), parseInt(corretor_id)]
+      )
+      
+      if (resultado.rowCount === 0) {
+        return res.status(404).json({ error: "Cliente ou vínculo não encontrado" })
+      }
+      
+      await dbQuery(
+        `INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao) VALUES ($1, $2, $3, $4)`,
+        [req.usuario.id, "REMOVER_CLIENTE", "CORRETORES", `Cliente ${cliente_id} removido do corretor ${corretor_id}`]
+      )
+      
+      console.log(`[${getDataSaoPaulo()}] [CORRETORES] Cliente ${cliente_id} removido do corretor ${corretor_id} por ${req.usuario.username}`)
+      res.json({ message: "Cliente removido com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CORRETORES] Erro ao remover cliente:`, err)
+      res.status(500).json({ error: "Erro ao remover cliente: " + err.message })
+    }
+  }
+)
+
+app.get(
+  "/api/clientes-disponiveis",
+  autenticar,
+  autorizar("head-admin", "admin"),
+  async (req, res) => {
+    try {
+      const resultado = await dbQuery(
+        `SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.usuario_id, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome
+         FROM clientes c
+         LEFT JOIN usuarios u ON c.usuario_id = u.id
+         LEFT JOIN usuarios ua ON c.atribuido_a = ua.id
+         ORDER BY c.nome`
+      )
+      
+      res.json(resultado.rows || [])
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [CLIENTES] Erro ao buscar clientes disponíveis:`, err)
+      res.status(500).json({ error: "Erro ao buscar clientes: " + err.message })
+    }
+  }
+)
 
 app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, res) => {
   try {

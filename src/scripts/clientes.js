@@ -125,11 +125,16 @@ function atualizarTabela() {
     headerCadastradoPor.style.display = isAdminOrHead ? "" : "none"
   }
 
+  const headerAtribuidoA = document.getElementById("headerAtribuidoA")
+  if (headerAtribuidoA) {
+    headerAtribuidoA.style.display = isAdminOrHead ? "" : "none"
+  }
+
   const inicio = (currentPage - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesFiltrados.slice(inicio, fim)
 
-  const colspan = isAdminOrHead ? 9 : 8
+  const colspan = isAdminOrHead ? 10 : 8
 
   if (clientesPagina.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum cliente encontrado</td></tr>`
@@ -152,6 +157,7 @@ function atualizarTabela() {
         <td>${cliente.email || "-"}</td>
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
+        ${isAdminOrHead ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
@@ -474,6 +480,16 @@ function abrirDetalhesCliente(id) {
       document.getElementById("detailCadastradoPor").textContent = cliente.cadastrado_por || "-"
     } else {
       detailCadastradoPorContainer.style.display = "none"
+    }
+  }
+
+  const detailAtribuidoAContainer = document.getElementById("detailAtribuidoAContainer")
+  if (detailAtribuidoAContainer) {
+    if (isAdminOrHeadAdmin()) {
+      detailAtribuidoAContainer.style.display = ""
+      document.getElementById("detailAtribuidoA").textContent = cliente.atribuido_a_nome || "-"
+    } else {
+      detailAtribuidoAContainer.style.display = "none"
     }
   }
 

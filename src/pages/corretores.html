@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concretizza - Gestão de Corretores</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/corretores.css">
+</head>
+<body class="app-page">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <i class="fas fa-building"></i>
+                <span>Concretizza</span>
+            </div>
+            <button class="sidebar-toggle-mobile" id="sidebarToggle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="clientes.html" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Clientes</span>
+            </a>
+            <a href="#agendamentos" class="nav-item">
+                <i class="fas fa-calendar"></i>
+                <span>Agendamentos</span>
+            </a>
+
+            <div id="adminSection" class="admin-section" style="display: none;">
+                <p class="nav-label">Administração</p>
+                <a href="usuarios.html" class="nav-item">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Gerenciar Usuários</span>
+                </a>
+                <a href="corretores.html" class="nav-item active">
+                    <i class="fas fa-handshake"></i>
+                    <span>Corretores & Clientes</span>
+                </a>
+                <a href="logs.html" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Logs</span>
+                </a>
+            </div>
+
+            <div class="nav-divider"></div>
+            <a href="index.html" class="nav-item" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="app-header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggleMobile">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>Gestão de Corretores</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="userName">Administrador</span>
+                    <span id="userRole" class="user-role"></span>
+                </div>
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalCorretores">0</h3>
+                        <p>Total de Corretores</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalClientes">0</h3>
+                        <p>Total de Clientes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="clientesSemCorretor">0</h3>
+                        <p>Clientes Sem Atribuição</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="clientesAtribuidos">0</h3>
+                        <p>Clientes Atribuídos</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="content-card">
+                    <div class="card-header-section">
+                        <h2><i class="fas fa-handshake"></i> Corretores e Clientes</h2>
+                    </div>
+
+                    <div class="filter-bar">
+                        <input type="text" id="searchCorretores" placeholder="Buscar corretor por nome..." class="search-input">
+                        <select id="filterStatus" class="select-input">
+                            <option value="">Todos os status</option>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                        </select>
+                    </div>
+
+                    <div id="corretoresContainer" class="corretores-container">
+                        <div class="carregando">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Carregando corretores...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="card-header-section">
+                        <h2><i class="fas fa-list"></i> Clientes Disponíveis</h2>
+                        <span class="badge-info">Clientes sem atribuição de corretor</span>
+                    </div>
+
+                    <div class="filter-bar">
+                        <input type="text" id="searchClientesDisponiveis" placeholder="Buscar cliente..." class="search-input">
+                        <select id="filterStatusClientes" class="select-input">
+                            <option value="">Todos os status</option>
+                            <option value="novo">Novo</option>
+                            <option value="quente">Quente</option>
+                            <option value="frio">Frio</option>
+                        </select>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Telefone</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Valor</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientesDisponiveisTable">
+                                <tr>
+                                    <td colspan="6" class="text-center">Carregando clientes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination">
+                        <button class="btn-secondary" id="prevPageDisponiveis" disabled>
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </button>
+                        <span id="pageInfoDisponiveis">Página 1 de 1</span>
+                        <button class="btn-secondary" id="nextPageDisponiveis" disabled>
+                            Próxima <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modalAtribuir" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Atribuir Cliente ao Corretor</h2>
+                <button class="modal-close" id="closeAtribuirModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formAtribuir" class="form">
+                    <div class="form-group" id="groupCorretorNome" style="display: none;">
+                        <label>Corretor Selecionado</label>
+                        <input type="text" id="corretorAtribuir" readonly class="input-disabled">
+                    </div>
+                    <div class="form-group" id="groupCorretorSelect" style="display: none;">
+                        <label for="corretorSelect">Selecione o Corretor *</label>
+                        <select id="corretorSelect" required>
+                            <option value="">-- Selecione um corretor --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="groupClienteNome" style="display: none;">
+                        <label>Cliente Selecionado</label>
+                        <input type="text" id="clienteAtribuirNome" readonly class="input-disabled">
+                    </div>
+                    <div class="form-group" id="groupClienteSelect" style="display: none;">
+                        <label for="clienteAtribuir">Selecione o Cliente *</label>
+                        <select id="clienteAtribuir" required>
+                            <option value="">-- Selecione um cliente --</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
+                        <button type="submit" class="btn-primary">Atribuir</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalClientesCorretor" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Clientes do Corretor: <span id="nomeCorretorModal">-</span></h2>
+                <button class="modal-close" id="closeClientesModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-bar">
+                    <input type="text" id="searchClientesCorretor" placeholder="Buscar cliente..." class="search-input">
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Telefone</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Interesse</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesCorretorTable">
+                            <tr>
+                                <td colspan="6" class="text-center">Carregando clientes...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalConfirmarRemocao" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Remover Cliente</h2>
+                <button class="modal-close" id="closeConfirmarRemocao">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p>Tem certeza que deseja remover <strong id="nomeClienteRemover">-</strong> deste corretor?</p>
+                    <p class="confirmation-warning">O cliente voltará a ficar disponível para atribuição.</p>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarRemocao">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarRemocao">
+                        <i class="fas fa-unlink"></i> Remover Cliente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/scripts/utils/api.js"></script>
+    <script src="/scripts/utils/data.js"></script>
+    <script src="/scripts/utils/permissions.js"></script>
+    <script src="/scripts/corretores.js"></script>
+</body>
+</html>

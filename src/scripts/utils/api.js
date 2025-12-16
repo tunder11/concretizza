@@ -94,6 +94,13 @@ async function deletarCliente(id) {
   return fazerRequisicao(`/api/clientes/${id}`, { method: "DELETE" })
 }
 
+async function atribuirCliente(id, atribuido_a) {
+  return fazerRequisicao(`/api/clientes/${id}/atribuir`, {
+    method: "POST",
+    body: JSON.stringify({ atribuido_a })
+  })
+}
+
 async function obterUsuarios() {
   return fazerRequisicao("/api/usuarios", { method: "GET" })
 }
