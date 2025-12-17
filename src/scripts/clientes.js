@@ -117,14 +117,19 @@ function aplicarPermissoes() {
   }
 
   if (isCorretor) {
+    const headerCheckbox = document.getElementById("headerCheckbox")
+    if (headerCheckbox) {
+      headerCheckbox.style.display = "none"
+    }
+    
+    const headerAcoes = document.getElementById("headerAcoes")
+    if (headerAcoes) {
+      headerAcoes.style.display = "none"
+    }
+    
     const selectAll = document.getElementById("selectAll")
     if (selectAll && selectAll.parentElement) {
       selectAll.parentElement.style.display = "none"
-    }
-    
-    const headerCheckbox = document.querySelector("th:has(#selectAll)")
-    if (headerCheckbox) {
-      headerCheckbox.style.display = "none"
     }
     
     const clienteCheckboxes = document.querySelectorAll(".cliente-checkbox")
@@ -172,8 +177,8 @@ function atualizarTabela() {
     tbody.innerHTML = clientesPagina
       .map(
         (cliente) => {
-          const podeEditarEste = podeEditar && (!isCorretor || cliente.usuario_id === usuarioLogado.id)
-          const podeDeletarEste = podeDeletar && (!isCorretor || cliente.usuario_id === usuarioLogado.id)
+          const podeEditarEste = podeEditar && !isCorretor
+          const podeDeletarEste = podeDeletar && !isCorretor
           
           return `
       <tr onclick="abrirDetalhesCliente(${cliente.id})" style="cursor: pointer;">
@@ -188,14 +193,14 @@ function atualizarTabela() {
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${isAdminOrHead ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
-        <td onclick="event.stopPropagation();">
+        ${!isCorretor ? `<td onclick="event.stopPropagation();">
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
           </button>` : ""}
           ${podeDeletarEste ? `<button class="btn-action btn-delete" onclick="excluirClienteConfirm(${cliente.id})" title="Excluir">
             <i class="fas fa-trash"></i> Excluir
           </button>` : ""}
-        </td>
+        </td>` : ""}
       </tr>
     `
         }

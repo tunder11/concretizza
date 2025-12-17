@@ -7,7 +7,7 @@ const jwt = require("jsonwebtoken")
 const { body, validationResult, param } = require("express-validator")
 const cors = require("cors")
 const rateLimit = require("express-rate-limit")
-const db = require("./db")
+const db = require("./src/config/db")
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -48,6 +48,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use(express.static(path.join(__dirname, "public")))
 app.use(express.static(path.join(__dirname, "src")))
 app.use("/src", express.static(path.join(__dirname, "src")))
 app.use("/styles", express.static(path.join(__dirname, "src/styles")))
@@ -458,7 +459,7 @@ app.post(
 app.put(
   "/api/clientes/:id",
   autenticar,
-  autorizar("admin", "head-admin", "corretor"),
+  autorizar("admin", "head-admin"),
   [
     param("id").isInt().withMessage("ID inválido"),
     body("nome").optional().trim().notEmpty().withMessage("Nome não pode estar vazio"),
@@ -499,7 +500,7 @@ app.put(
 app.delete(
   "/api/clientes/:id",
   autenticar,
-  autorizar("admin", "head-admin", "corretor"),
+  autorizar("admin", "head-admin"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
   async (req, res) => {
