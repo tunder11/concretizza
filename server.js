@@ -289,9 +289,9 @@ async function seedDefaultUsers() {
         const senhaHash = await bcrypt.hash(usuario.password, BCRYPT_ROUNDS)
         try {
           await dbQuery(
-            `INSERT INTO usuarios (nome, email, username, senha, permissao, status)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo"]
+            `INSERT INTO usuarios (nome, email, username, senha, permissao, status, ultimoAcesso)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [usuario.nome, usuario.email, usuario.username, senhaHash, usuario.permissao, "ativo", new Date().toISOString()]
           )
         } catch (e) {
           if (!e.message.includes("UNIQUE")) throw e
@@ -398,8 +398,8 @@ app.post(
       if (err) return res.status(500).json({ error: "Erro ao processar senha" })
 
       db.run(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status) VALUES ($1, $2, $3, $4, $5, $6)",
-        [nome, email, username, senhaHash, "corretor", "ativo"],
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, ultimoAcesso) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [nome, email, username, senhaHash, "corretor", "ativo", new Date().toISOString()],
         function (err) {
           if (err) {
             if (err.message.includes("UNIQUE")) {
@@ -647,8 +647,8 @@ app.post(
       })
 
       const result = await dbQuery(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
-        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null]
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento, ultimoAcesso) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null, new Date().toISOString()]
       )
       const usuarioId = result.rows[0]?.id
       await registrarLog(req.usuario.id, "CRIAR", "Usuários", `Usuário criado: ${username}`, nome, req)
