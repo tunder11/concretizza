@@ -124,7 +124,7 @@ function aplicarPermissoes() {
     
     const headerAcoes = document.getElementById("headerAcoes")
     if (headerAcoes) {
-      headerAcoes.style.display = "none"
+      // headerAcoes.style.display = "none" // Permitir que corretores vejam a coluna de ações
     }
     
     const selectAll = document.getElementById("selectAll")
@@ -168,7 +168,7 @@ function atualizarTabela() {
   if (isAdminOrHead) {
     colspan = 10
   } else if (isCorretor) {
-    colspan = 6
+    colspan = 7
   }
 
   if (clientesPagina.length === 0) {
@@ -177,7 +177,7 @@ function atualizarTabela() {
     tbody.innerHTML = clientesPagina
       .map(
         (cliente) => {
-          const podeEditarEste = podeEditar && !isCorretor
+          const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && cliente.usuario_id === usuarioLogado.id)
           const podeDeletarEste = podeDeletar && !isCorretor
           
           return `
@@ -193,14 +193,14 @@ function atualizarTabela() {
         <td>${formatarData(cliente.data)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${isAdminOrHead ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
-        ${!isCorretor ? `<td onclick="event.stopPropagation();">
+        <td onclick="event.stopPropagation();">
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
           </button>` : ""}
           ${podeDeletarEste ? `<button class="btn-action btn-delete" onclick="excluirClienteConfirm(${cliente.id})" title="Excluir">
             <i class="fas fa-trash"></i> Excluir
           </button>` : ""}
-        </td>` : ""}
+        </td>
       </tr>
     `
         }
@@ -260,6 +260,29 @@ function configurarEventos() {
       clienteEmEdicao = null
       document.getElementById("modalTitle").textContent = "Novo Cliente"
       formCliente.reset()
+      
+      // Reabilitar todos os campos e mostrar form-groups
+      const camposRestritos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
+      camposRestritos.forEach(campoId => {
+        const el = document.getElementById(campoId)
+        if (el) {
+          el.disabled = false
+          el.style.backgroundColor = ""
+          el.style.cursor = ""
+          
+          const formGroup = el.closest('.form-group')
+          if (formGroup) {
+            formGroup.style.display = ""
+          }
+        }
+      })
+      
+      // Esconder info de edição se existir
+      const infoCliente = document.getElementById("infoClienteEdicao")
+      if (infoCliente) {
+        infoCliente.style.display = "none"
+      }
+
       modalCliente.style.display = "flex"
     })
   }
@@ -478,6 +501,51 @@ function editarCliente(id) {
   document.getElementById("clienteStatus").value = cliente.status
   document.getElementById("clienteObservacoes").value = cliente.observacoes || ""
 
+  // Ocultar campos que corretor não pode editar
+  const camposRestritos = ["clienteNome", "clienteTelefone", "clienteEmail", "clienteValor", "clienteObservacoes"]
+  camposRestritos.forEach(campoId => {
+    const el = document.getElementById(campoId)
+    if (el) {
+      const formGroup = el.closest('.form-group')
+      if (formGroup) {
+        if (isCorretor) {
+          formGroup.style.display = "none"
+        } else {
+          formGroup.style.display = ""
+        }
+      }
+      
+      // Manter disabled logic just in case
+      el.disabled = isCorretor
+    }
+  })
+  
+  // Se for corretor, mostrar nome do cliente em destaque já que o campo de nome está oculto
+  const modalBody = document.querySelector("#modalCliente .modal-body")
+  let infoCliente = document.getElementById("infoClienteEdicao")
+  
+  if (isCorretor) {
+    if (!infoCliente) {
+      infoCliente = document.createElement("div")
+      infoCliente.id = "infoClienteEdicao"
+      infoCliente.className = "alert alert-info"
+      infoCliente.style.marginBottom = "15px"
+      infoCliente.style.padding = "10px"
+      infoCliente.style.backgroundColor = "#0e0e0eff"
+      infoCliente.style.borderRadius = "4px"
+      infoCliente.style.borderLeft = "4px solid #ffd700"
+      
+      const form = document.getElementById("formCliente")
+      form.insertBefore(infoCliente, form.firstChild)
+    }
+    infoCliente.innerHTML = `<strong>Editando cliente:</strong> ${cliente.nome}`
+    infoCliente.style.display = "block"
+  } else {
+    if (infoCliente) {
+      infoCliente.style.display = "none"
+    }
+  }
+
   document.getElementById("modalCliente").style.display = "flex"
 }
 
@@ -504,7 +572,7 @@ function abrirDetalhesCliente(id) {
   
   const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
   if (btnEditarDetalhes) {
-    const podeEditarEste = podeEditar && !isCorretor
+    const podeEditarEste = (podeEditar && !isCorretor) || (isCorretor && cliente.usuario_id === usuarioLogado.id)
     btnEditarDetalhes.style.display = podeEditarEste ? "" : "none"
   }
   

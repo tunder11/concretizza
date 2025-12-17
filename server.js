@@ -479,7 +479,7 @@ app.post(
 app.put(
   "/api/clientes/:id",
   autenticar,
-  autorizar("admin", "head-admin"),
+  autorizar("admin", "head-admin", "corretor"),
   [
     param("id").isInt().withMessage("ID inválido"),
     body("nome").optional().trim().notEmpty().withMessage("Nome não pode estar vazio"),
@@ -501,6 +501,15 @@ app.put(
           console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário`)
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
         }
+
+        // Corretores só podem editar status e interesse
+        const result = await dbQuery(
+          "UPDATE clientes SET interesse = $1, status = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
+          [interesse || null, status || null, id]
+        )
+        if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${id}`, id, req)
+        return res.json({ success: true, message: "Cliente atualizado com sucesso" })
       }
       
       const result = await dbQuery(
