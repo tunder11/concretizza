@@ -430,7 +430,7 @@ app.get("/api/clientes", autenticar, (req, res) => {
     params = [usuarioId, usuarioId]
   }
   
-  query += " ORDER BY c.data DESC"
+  query += " ORDER BY c.id DESC"
   
   db.all(query, params, (err, rows) => {
     if (err) {
