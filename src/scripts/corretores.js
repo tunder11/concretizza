@@ -322,7 +322,32 @@ function aplicarPermissoes() {
 }
 
 function configurarEventos() {
-  document.getElementById("logoutBtn").addEventListener("click", fazerLogout)
+  const logoutBtn = document.getElementById("logoutBtn")
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", (e) => {
+      e.preventDefault()
+      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
+    })
+  }
+
+  const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
+  if (closeConfirmacaoLogout) {
+    closeConfirmacaoLogout.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+    })
+  }
+
+  const btnCancelarLogout = document.getElementById("btnCancelarLogout")
+  if (btnCancelarLogout) {
+    btnCancelarLogout.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+    })
+  }
+
+  const btnConfirmarLogout = document.getElementById("btnConfirmarLogout")
+  if (btnConfirmarLogout) {
+    btnConfirmarLogout.addEventListener("click", fazerLogout)
+  }
   
   document.getElementById("searchCorretores").addEventListener("input", filtrarCorretores)
   document.getElementById("filterStatus").addEventListener("change", filtrarCorretores)

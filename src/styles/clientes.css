@@ -725,6 +725,10 @@ body {
   word-break: break-word;
 }
 
+#detailObservacoes {
+  white-space: pre-wrap;
+}
+
 .details-actions {
   display: flex;
   gap: var(--spacing-md);

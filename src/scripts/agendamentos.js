@@ -73,7 +73,11 @@ async function carregarClientes() {
     const selectCliente = document.getElementById("agendamentoCliente")
     if (selectCliente) {
         selectCliente.innerHTML = '<option value="">Selecione um cliente</option>'
-        clientes.forEach(cliente => {
+        
+        // Filtrar apenas clientes em atendimento
+        const clientesFiltrados = clientes.filter(c => c.status === 'em-atendimento')
+        
+        clientesFiltrados.forEach(cliente => {
             const option = document.createElement("option")
             option.value = cliente.id
             option.textContent = cliente.nome
@@ -322,10 +326,27 @@ function configurarEventos() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", (e) => {
       e.preventDefault()
-      if (confirm("Tem certeza que deseja sair?")) {
-        fazerLogout()
-      }
+      document.getElementById("modalConfirmacaoLogout").style.display = "flex"
     })
+  }
+
+  const closeConfirmacaoLogout = document.getElementById("closeConfirmacaoLogout")
+  if (closeConfirmacaoLogout) {
+    closeConfirmacaoLogout.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+    })
+  }
+
+  const btnCancelarLogout = document.getElementById("btnCancelarLogout")
+  if (btnCancelarLogout) {
+    btnCancelarLogout.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoLogout").style.display = "none"
+    })
+  }
+
+  const btnConfirmarLogout = document.getElementById("btnConfirmarLogout")
+  if (btnConfirmarLogout) {
+    btnConfirmarLogout.addEventListener("click", fazerLogout)
   }
 
   // Modal Novo/Editar
@@ -456,7 +477,22 @@ window.editarAgendamento = function(id) {
   
   agendamentoEmEdicao = id
   
-  document.getElementById("agendamentoCliente").value = agendamento.cliente_id
+  const selectCliente = document.getElementById("agendamentoCliente")
+  
+  // Verificar se o cliente está na lista (pode ter sido filtrado se não estiver em atendimento)
+  const clienteNaLista = Array.from(selectCliente.options).some(opt => opt.value == agendamento.cliente_id)
+  
+  if (!clienteNaLista) {
+      const cliente = clientes.find(c => c.id == agendamento.cliente_id)
+      if (cliente) {
+          const option = document.createElement("option")
+          option.value = cliente.id
+          option.textContent = cliente.nome
+          selectCliente.appendChild(option)
+      }
+  }
+  
+  selectCliente.value = agendamento.cliente_id
   document.getElementById("agendamentoData").value = agendamento.data
   document.getElementById("agendamentoHora").value = agendamento.hora
   document.getElementById("agendamentoTipo").value = agendamento.tipo
