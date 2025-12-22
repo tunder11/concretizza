@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concretizza - Agendamentos</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/agendamentos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="app-page">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <i class="fas fa-building"></i>
+                <span>Concretizza</span>
+            </div>
+            <button class="sidebar-toggle-mobile" id="sidebarToggle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/clientes" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Clientes</span>
+            </a>
+            <a href="/agendamentos" class="nav-item active">
+                <i class="fas fa-calendar"></i>
+                <span>Agendamentos</span>
+            </a>
+
+            <div id="adminSection" class="admin-section" style="display: none;">
+                <p class="nav-label">Administração</p>
+                <a href="/usuarios" class="nav-item" data-page="usuarios">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Gerenciar Usuários</span>
+                </a>
+                <a href="/corretores" class="nav-item" data-page="corretores">
+                    <i class="fas fa-handshake"></i>
+                    <span>Corretores & Clientes</span>
+                </a>
+                <a href="/logs" class="nav-item" data-page="logs">
+                    <i class="fas fa-history"></i>
+                    <span>Logs</span>
+                </a>
+            </div>
+
+            <div class="nav-divider"></div>
+            <a href="/" class="nav-item" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="app-header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggleMobile">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>Agendamentos</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="userName">Usuário</span>
+                    <span id="userRole" class="user-role"></span>
+                </div>
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalAgendamentos">0</h3>
+                        <p>Total de Agendamentos</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="agendamentosProximos">0</h3>
+                        <p>Próximos 7 dias</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="agendamentosConcluidos">0</h3>
+                        <p>Concluídos</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="agendamentosCancelados">0</h3>
+                        <p>Cancelados</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h2>Visão Geral de Agendamentos</h2>
+                    <select id="chartPeriod" class="select-input" style="max-width: 200px;">
+                        <option value="week">Última Semana</option>
+                        <option value="month">Último Mês</option>
+                        <option value="year">Último Ano</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="agendamentosChart"></canvas>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header-section">
+                    <h2>Gerenciar Agendamentos</h2>
+                    <button class="btn-primary" id="btnNovoAgendamento">
+                        <i class="fas fa-plus"></i> Novo Agendamento
+                    </button>
+                </div>
+
+                <div class="filter-bar">
+                    <input type="text" id="searchAgendamentos" placeholder="Buscar por cliente ou descrição..." class="search-input">
+                    <input type="date" id="filterData" class="select-input">
+                    <select id="filterStatus" class="select-input">
+                        <option value="">Todos os status</option>
+                        <option value="agendado">Agendado</option>
+                        <option value="concluido">Concluído</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                    <select id="filterTipo" class="select-input">
+                        <option value="">Todos os tipos</option>
+                        <option value="visita">Visita</option>
+                        <option value="reuniao">Reunião</option>
+                        <option value="assinatura">Assinatura</option>
+                    </select>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th>Local</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agendamentosTable">
+                            <tr>
+                                <td colspan="7" class="text-center">Nenhum agendamento encontrado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button class="btn-secondary" id="prevPage" disabled>
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="pageInfo">Página 1 de 1</span>
+                    <button class="btn-secondary" id="nextPage" disabled>
+                        Próxima <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modalAgendamento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Novo Agendamento</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formAgendamento" class="form">
+                    <div class="form-group">
+                        <label for="agendamentoCliente">Cliente *</label>
+                        <select id="agendamentoCliente" required>
+                            <option value="">Selecione um cliente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoData">Data *</label>
+                        <input type="date" id="agendamentoData" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoHora">Hora *</label>
+                        <input type="time" id="agendamentoHora" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoTipo">Tipo *</label>
+                        <select id="agendamentoTipo" required>
+                            <option value="visita">Visita</option>
+                            <option value="reuniao">Reunião</option>
+                            <option value="assinatura">Assinatura</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoLocal">Local</label>
+                        <input type="text" id="agendamentoLocal" placeholder="Endereço ou link da reunião">
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoStatus">Status *</label>
+                        <select id="agendamentoStatus" required>
+                            <option value="agendado">Agendado</option>
+                            <option value="concluido">Concluído</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoObservacoes">Observações</label>
+                        <textarea id="agendamentoObservacoes" rows="3" placeholder="Detalhes adicionais..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
+                        <button type="submit" class="btn-primary">Salvar Agendamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalConfirmacaoExclusao" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Exclusão</h2>
+                <button class="modal-close" id="closeConfirmacaoExclusao">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p>Tem certeza que deseja excluir o agendamento de <strong id="detalhesAgendamentoExcluir">-</strong>?</p>
+                    <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarExclusao">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarExclusao">
+                        <i class="fas fa-trash"></i> Confirmar Exclusão
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="toast"></div>
+
+    <script src="/scripts/utils/api.js?v=2"></script>
+    <script src="/scripts/utils/permissions.js?v=2"></script>
+    <script src="/scripts/utils/data.js?v=2"></script>
+    <script src="/scripts/agendamentos.js?v=1"></script>
+</body>
+</html>

@@ -1041,6 +1041,136 @@ app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req
   }
 })
 
+// ===== ROTAS DE AGENDAMENTOS =====
+app.get("/api/agendamentos", autenticar, async (req, res) => {
+  try {
+    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    const usuarioId = req.usuario.id
+    
+    let query = `
+      SELECT a.*, c.nome as cliente_nome, c.telefone as cliente_telefone, u.nome as usuario_nome 
+      FROM agendamentos a
+      LEFT JOIN clientes c ON a.cliente_id = c.id
+      LEFT JOIN usuarios u ON a.usuario_id = u.id
+    `
+    let params = []
+    
+    if (isCorretor) {
+      query += " WHERE a.usuario_id = $1"
+      params = [usuarioId]
+    }
+    
+    query += " ORDER BY a.data ASC, a.hora ASC"
+    
+    const result = await dbQuery(query, params)
+    res.json(result.rows || [])
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao buscar agendamentos:`, err)
+    res.status(500).json({ error: "Erro ao buscar agendamentos: " + err.message })
+  }
+})
+
+app.post(
+  "/api/agendamentos",
+  autenticar,
+  [
+    body("cliente_id").isInt().withMessage("Cliente inválido"),
+    body("data").trim().notEmpty().withMessage("Data é obrigatória"),
+    body("hora").trim().notEmpty().withMessage("Hora é obrigatória"),
+    body("tipo").trim().notEmpty().withMessage("Tipo é obrigatório")
+  ],
+  validarRequisicao,
+  async (req, res) => {
+    const { cliente_id, data, hora, tipo, status, observacoes } = req.body
+    const usuarioId = req.usuario.id
+    
+    try {
+      // Verificar se o cliente existe
+      const cliente = await dbQuery("SELECT id FROM clientes WHERE id = $1", [cliente_id])
+      if (cliente.rows.length === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+
+      const result = await dbQuery(
+        "INSERT INTO agendamentos (cliente_id, usuario_id, data, hora, tipo, status, observacoes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+        [cliente_id, usuarioId, data, hora, tipo, status || 'agendado', observacoes || null]
+      )
+      
+      const agendamentoId = result.rows[0]?.id
+      await registrarLog(req.usuario.id, "CRIAR", "Agendamentos", `Agendamento criado para cliente ${cliente_id}`, agendamentoId, req)
+      
+      res.status(201).json({ id: agendamentoId, message: "Agendamento criado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao criar agendamento:`, err)
+      res.status(500).json({ error: "Erro ao criar agendamento: " + err.message })
+    }
+  }
+)
+
+app.put(
+  "/api/agendamentos/:id",
+  autenticar,
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const { data, hora, tipo, status, observacoes } = req.body
+    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    
+    try {
+      const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
+      if (agendamento.rows.length === 0) {
+        return res.status(404).json({ error: "Agendamento não encontrado" })
+      }
+      
+      if (isCorretor && agendamento.rows[0].usuario_id !== req.usuario.id) {
+        return res.status(403).json({ error: "Permissão negada" })
+      }
+
+      await dbQuery(
+        "UPDATE agendamentos SET data = COALESCE($1, data), hora = COALESCE($2, hora), tipo = COALESCE($3, tipo), status = COALESCE($4, status), observacoes = COALESCE($5, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
+        [data, hora, tipo, status, observacoes, id]
+      )
+      
+      await registrarLog(req.usuario.id, "EDITAR", "Agendamentos", `Agendamento ${id} atualizado`, id, req)
+      res.json({ success: true, message: "Agendamento atualizado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao atualizar agendamento:`, err)
+      res.status(500).json({ error: "Erro ao atualizar agendamento: " + err.message })
+    }
+  }
+)
+
+app.delete(
+  "/api/agendamentos/:id",
+  autenticar,
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    
+    try {
+      const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
+      if (agendamento.rows.length === 0) {
+        return res.status(404).json({ error: "Agendamento não encontrado" })
+      }
+      
+      if (isCorretor && agendamento.rows[0].usuario_id !== req.usuario.id) {
+        return res.status(403).json({ error: "Permissão negada" })
+      }
+
+      await dbQuery("DELETE FROM agendamentos WHERE id = $1", [id])
+      
+      await registrarLog(req.usuario.id, "DELETAR", "Agendamentos", `Agendamento ${id} deletado`, id, req)
+      res.json({ success: true, message: "Agendamento deletado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao deletar agendamento:`, err)
+      res.status(500).json({ error: "Erro ao deletar agendamento: " + err.message })
+    }
+  }
+)
+
 // ===== SERVIR ARQUIVO RAIZ =====
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "index.html"))
@@ -1052,6 +1182,10 @@ app.get("/dashboard", (req, res) => {
 
 app.get("/clientes", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "clientes.html"))
+})
+
+app.get("/agendamentos", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "agendamentos.html"))
 })
 
 app.get("/usuarios", (req, res) => {

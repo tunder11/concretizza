@@ -131,6 +131,28 @@ async function deletarUsuario(id) {
   }
 }
 
+async function obterAgendamentos() {
+  return fazerRequisicao("/api/agendamentos", { method: "GET" })
+}
+
+async function criarAgendamento(agendamento) {
+  return fazerRequisicao("/api/agendamentos", {
+    method: "POST",
+    body: JSON.stringify(agendamento)
+  })
+}
+
+async function atualizarAgendamento(id, agendamento) {
+  return fazerRequisicao(`/api/agendamentos/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(agendamento)
+  })
+}
+
+async function deletarAgendamento(id) {
+  return fazerRequisicao(`/api/agendamentos/${id}`, { method: "DELETE" })
+}
+
 function fazerLogout() {
   localStorage.removeItem("token")
   localStorage.removeItem("usuarioLogado")
