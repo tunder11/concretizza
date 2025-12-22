@@ -604,8 +604,8 @@ function formatarStatus(status) {
   const mapa = {
     novo: "Novo",
     "em-atendimento": "Em Atendimento",
-    quente: "Quente",
-    frio: "Frio",
+    prioridade: "Prioridade",
+    aguardando: "Aguardando",
     finalizado: "Finalizado"
   }
   return mapa[status] || status

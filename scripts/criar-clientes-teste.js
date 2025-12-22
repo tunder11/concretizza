@@ -37,7 +37,7 @@ async function criarClientesTeste() {
         email: "maria.santos@email.com",
         interesse: "alugar",
         valor: "3000",
-        status: "quente",
+        status: "prioridade",
         observacoes: "Cliente interessado, acompanhar"
       },
       {
@@ -55,8 +55,8 @@ async function criarClientesTeste() {
         email: "ana.costa@email.com",
         interesse: "comprar",
         valor: "400000",
-        status: "frio",
-        observacoes: "Cliente sem responder"
+        status: "aguardando",
+        observacoes: "Cliente aguardando retorno"
       },
       {
         nome: "Carlos Ferreira",
@@ -64,7 +64,7 @@ async function criarClientesTeste() {
         email: "carlos.f@email.com",
         interesse: "alugar",
         valor: "2500",
-        status: "quente",
+        status: "prioridade",
         observacoes: "Urgente - precisa alugar em 2 semanas"
       },
       {
@@ -82,7 +82,7 @@ async function criarClientesTeste() {
         email: "lucas.m@email.com",
         interesse: "vender",
         valor: "950000",
-        status: "quente",
+        status: "prioridade",
         observacoes: "Cliente motivado"
       },
       {

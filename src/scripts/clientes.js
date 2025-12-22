@@ -68,13 +68,13 @@ async function carregarClientes() {
 function atualizarEstatisticas() {
   const totalClientes = clientes.length
   const clientesNovos = clientes.filter((c) => c.status === "novo").length
-  const clientesQuentes = clientes.filter((c) => c.status === "quente").length
-  const clientesFrios = clientes.filter((c) => c.status === "frio").length
+  const clientesPrioridade = clientes.filter((c) => c.status === "prioridade").length
+  const clientesAguardando = clientes.filter((c) => c.status === "aguardando").length
 
   document.getElementById("totalClientes").textContent = totalClientes
   document.getElementById("clientesNovos").textContent = clientesNovos
-  document.getElementById("clientesQuentes").textContent = clientesQuentes
-  document.getElementById("clientesFrios").textContent = clientesFrios
+  document.getElementById("clientesPrioridade").textContent = clientesPrioridade
+  document.getElementById("clientesAguardando").textContent = clientesAguardando
 }
 
 function atualizarPaginacao() {
@@ -717,8 +717,8 @@ function formatarStatus(status) {
   const map = {
     novo: "Novo",
     "em-atendimento": "Em Atendimento",
-    quente: "Quente",
-    frio: "Frio",
+    prioridade: "Prioridade",
+    aguardando: "Aguardando",
     finalizado: "Finalizado"
   }
   return map[status] || status

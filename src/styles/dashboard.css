@@ -508,14 +508,14 @@ body.login-page {
   color: #64c8ff;
 }
 
-.badge-quente {
-  background-color: rgba(255, 100, 100, 0.2);
-  color: #ff6464;
+.badge-prioridade {
+  background-color: rgba(220, 38, 38, 0.2);
+  color: #dc2626;
 }
 
-.badge-frio {
-  background-color: rgba(100, 150, 255, 0.2);
-  color: #6496ff;
+.badge-aguardando {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
 }
 
 .badge-em-atendimento {

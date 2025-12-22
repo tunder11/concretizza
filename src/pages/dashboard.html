@@ -100,7 +100,7 @@
                     <div class="card-metric">
                         <div class="card-header">
                             <h3>Clientes Novos</h3>
-                            <i class="fas fa-star"></i>
+                            <i class="fas fa-user-plus"></i>
                         </div>
                         <div class="card-value" id="clientesNovos">0</div>
                         <div class="card-subtitle">Este mês</div>
@@ -108,20 +108,20 @@
 
                     <div class="card-metric">
                         <div class="card-header">
-                            <h3>Clientes Quentes</h3>
-                            <i class="fas fa-fire"></i>
+                            <h3>Clientes Prioridade</h3>
+                            <i class="fas fa-star"></i>
                         </div>
-                        <div class="card-value" id="clientesQuentes">0</div>
-                        <div class="card-subtitle">Alto potencial</div>
+                        <div class="card-value" id="clientesPrioridade">0</div>
+                        <div class="card-subtitle">Clientes prioritários</div>
                     </div>
 
                     <div class="card-metric">
                         <div class="card-header">
-                            <h3>Clientes Frios</h3>
-                            <i class="fas fa-snowflake"></i>
+                            <h3>Clientes Aguardando</h3>
+                            <i class="fas fa-hourglass-half"></i>
                         </div>
-                        <div class="card-value" id="clientesFrios">0</div>
-                        <div class="card-subtitle">Baixo engajamento</div>
+                        <div class="card-value" id="clientesAguardando">0</div>
+                        <div class="card-subtitle">Aguardando Retorno</div>
                     </div>
 
                     <div class="card-metric">
@@ -168,8 +168,8 @@
                         <select id="filterStatus" class="select-input">
                             <option value="">Todos os status</option>
                             <option value="novo">Novo</option>
-                            <option value="quente">Quente</option>
-                            <option value="frio">Frio</option>
+                            <option value="prioridade">Prioridade</option>
+                            <option value="aguardando">Aguardando</option>
                             <option value="em-atendimento">Em Atendimento</option>
                             <option value="finalizado">Finalizado</option>
                         </select>
@@ -334,8 +334,8 @@
                     <select id="clienteStatus" required>
                         <option value="novo">Novo</option>
                         <option value="em-atendimento">Em Atendimento</option>
-                        <option value="quente">Quente</option>
-                        <option value="frio">Frio</option>
+                        <option value="prioridade">Prioridade</option>
+                        <option value="aguardando">Aguardando</option>
                         <option value="finalizado">Finalizado</option>
                     </select>
                 </div>
