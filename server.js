@@ -75,14 +75,18 @@ function autenticar(req, res, next) {
 }
 
 // ===== MIDDLEWARE DE AUTORIZAÇÃO =====
-function autorizar(...cargos) {
+function autorizar(...cargosPermitidos) {
   return (req, res, next) => {
-    console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Verificando cargo "${req.usuario.cargo}" contra [${cargos.join(", ")}]`)
-    if (!cargos.includes(req.usuario.cargo)) {
-      console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Permissão negada para cargo "${req.usuario.cargo}"`)
+    const cargosUsuario = req.usuario.cargo ? req.usuario.cargo.split(',').map(c => c.trim()) : [];
+    console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Verificando cargos "${cargosUsuario.join(", ")}" contra [${cargosPermitidos.join(", ")}]`)
+    
+    const temPermissao = cargosUsuario.some(cargo => cargosPermitidos.includes(cargo));
+
+    if (!temPermissao) {
+      console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Permissão negada para cargos "${cargosUsuario.join(", ")}"`)
       return res.status(403).json({ error: "Permissão negada" })
     }
-    console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Permissão concedida para cargo "${req.usuario.cargo}"`)
+    console.log(`[${getDataSaoPaulo()}] [AUTORIZAR] Permissão concedida para cargos "${cargosUsuario.join(", ")}"`)
     next()
   }
 }
@@ -419,7 +423,7 @@ app.post(
 
 // ===== ROTAS DE CLIENTES =====
 app.get("/api/clientes", autenticar, (req, res) => {
-  const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+  const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
   const usuarioId = req.usuario.id
   
   let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
@@ -489,7 +493,7 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { nome, telefone, email, interesse, valor, status, observacoes } = req.body
-    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
     
     try {
       if (isCorretor) {
@@ -534,7 +538,7 @@ app.delete(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
     
     try {
       const clienteResult = await dbQuery("SELECT nome, usuario_id FROM clientes WHERE id = $1", [id])
@@ -641,9 +645,16 @@ app.post(
   validarRequisicao,
   async (req, res) => {
     const { nome, email, username, password, permissao, status, telefone, departamento } = req.body
-    const cargoUsuarioLogado = req.usuario.cargo.toLowerCase()
+    const cargosUsuarioLogado = req.usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+    const cargosNovos = permissao.toLowerCase().split(',').map(c => c.trim())
 
-    if (cargoUsuarioLogado === "admin" && (permissao.toLowerCase() === "admin" || permissao.toLowerCase() === "head-admin")) {
+    const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
+    const isLogadoAdmin = cargosUsuarioLogado.includes("admin")
+    
+    const isNovoAdmin = cargosNovos.includes("admin")
+    const isNovoHeadAdmin = cargosNovos.includes("head-admin")
+
+    if (!isLogadoHeadAdmin && isLogadoAdmin && (isNovoAdmin || isNovoHeadAdmin)) {
       return res.status(403).json({ error: "Admin não pode criar usuários com cargo admin ou superior" })
     }
 
@@ -681,7 +692,7 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { nome, email, password, permissao, status, telefone, departamento } = req.body
-    const cargoUsuarioLogado = req.usuario.cargo.toLowerCase()
+    const cargosUsuarioLogado = req.usuario.cargo.toLowerCase().split(',').map(c => c.trim())
     const usuarioIdSendoEditado = parseInt(id)
 
     try {
@@ -690,9 +701,15 @@ app.put(
 
       if (!usuarioAlvo) return res.status(404).json({ error: "Usuário não encontrado" })
 
-      const cargoAlvo = usuarioAlvo.permissao.toLowerCase()
+      const cargosAlvo = usuarioAlvo.permissao.toLowerCase().split(',').map(c => c.trim())
+      
+      const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
+      const isLogadoAdmin = cargosUsuarioLogado.includes("admin")
+      
+      const isAlvoAdmin = cargosAlvo.includes("admin")
+      const isAlvoHeadAdmin = cargosAlvo.includes("head-admin")
 
-      if (cargoUsuarioLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+      if (!isLogadoHeadAdmin && isLogadoAdmin && (isAlvoAdmin || isAlvoHeadAdmin)) {
         return res.status(403).json({ error: "Admin não pode editar usuários com cargo igual ou superior" })
       }
 
@@ -761,10 +778,16 @@ app.delete(
         return res.status(404).json({ error: "Usuário não encontrado" })
       }
 
-      const cargoUsuarioLogado = usuarioAtual.cargo?.toLowerCase()
-      const cargoUsuarioAlvo = usuarioAlvo.permissao?.toLowerCase()
+      const cargosUsuarioLogado = usuarioAtual.cargo?.toLowerCase().split(',').map(c => c.trim())
+      const cargosUsuarioAlvo = usuarioAlvo.permissao?.toLowerCase().split(',').map(c => c.trim())
 
-      if (cargoUsuarioLogado === "admin" && (cargoUsuarioAlvo === "admin" || cargoUsuarioAlvo === "head-admin")) {
+      const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
+      const isLogadoAdmin = cargosUsuarioLogado.includes("admin")
+      
+      const isAlvoAdmin = cargosUsuarioAlvo.includes("admin")
+      const isAlvoHeadAdmin = cargosUsuarioAlvo.includes("head-admin")
+
+      if (!isLogadoHeadAdmin && isLogadoAdmin && (isAlvoAdmin || isAlvoHeadAdmin)) {
         console.log(`[${getDataSaoPaulo()}] [DELETE USUARIO] Erro: Admin tentou deletar usuário com cargo igual ou superior`)
         return res.status(403).json({ error: "Admin não pode deletar usuários com cargo igual ou superior" })
       }
@@ -899,7 +922,7 @@ app.get(
         `SELECT u.id, u.nome, u.email, u.telefone, u.departamento, u.status, COUNT(c.id) as total_clientes
          FROM usuarios u
          LEFT JOIN clientes c ON u.id = c.usuario_id
-         WHERE u.permissao = 'corretor'
+         WHERE u.permissao LIKE '%corretor%'
          GROUP BY u.id, u.nome, u.email, u.telefone, u.departamento, u.status
          ORDER BY u.nome`
       )
@@ -1044,7 +1067,7 @@ app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req
 // ===== ROTAS DE AGENDAMENTOS =====
 app.get("/api/agendamentos", autenticar, async (req, res) => {
   try {
-    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
     const usuarioId = req.usuario.id
     
     let query = `
@@ -1115,7 +1138,7 @@ app.put(
   async (req, res) => {
     const { id } = req.params
     const { data, hora, tipo, status, observacoes } = req.body
-    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
     
     try {
       const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
@@ -1148,7 +1171,7 @@ app.delete(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const isCorretor = req.usuario.cargo?.toLowerCase() === "corretor"
+    const isCorretor = req.usuario.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("corretor")
     
     try {
       const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])

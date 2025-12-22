@@ -96,8 +96,8 @@ async function carregarUsuarios() {
 function atualizarTabela() {
   const tbody = document.getElementById("usuariosTable")
   const usuario = obterUsuarioLogado()
-  const cargoLogado = usuario?.cargo?.toLowerCase()
-  const podeEditar = usuario && (cargoLogado === "head-admin" || cargoLogado === "admin")
+  const cargosLogado = usuario?.cargo?.toLowerCase().split(',').map(c => c.trim())
+  const podeEditar = usuario && (cargosLogado.includes("head-admin") || cargosLogado.includes("admin"))
 
   const inicio = (paginaAtual - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
@@ -110,9 +110,9 @@ function atualizarTabela() {
       .map((usr) => {
         const status = usr.status || "ativo"
         const ultimoAcesso = formatarDataSP(usr.ultimoAcesso)
-        const cargoAlvo = usr.permissao?.toLowerCase()
-        const podeEditarEste = cargoLogado === "head-admin" || (cargoLogado === "admin" && cargoAlvo !== "admin" && cargoAlvo !== "head-admin")
-        const podeDeletarEste = cargoLogado === "head-admin" || (cargoLogado === "admin" && cargoAlvo !== "admin" && cargoAlvo !== "head-admin")
+        const cargosAlvo = usr.permissao?.toLowerCase().split(',').map(c => c.trim())
+        const podeEditarEste = cargosLogado.includes("head-admin") || (cargosLogado.includes("admin") && !cargosAlvo.includes("admin") && !cargosAlvo.includes("head-admin"))
+        const podeDeletarEste = cargosLogado.includes("head-admin") || (cargosLogado.includes("admin") && !cargosAlvo.includes("admin") && !cargosAlvo.includes("head-admin"))
         
         return `
           <tr onclick="abrirDetalhesUsuario(${usr.id})" style="cursor: pointer;">
@@ -153,8 +153,14 @@ function atualizarPaginacao() {
 
 function atualizarEstatisticas() {
   const totalUsuarios = usuarios.length
-  const totalAdmins = usuarios.filter(u => u.permissao?.toLowerCase() === "admin" || u.permissao?.toLowerCase() === "head-admin").length
-  const totalCorretores = usuarios.filter(u => u.permissao?.toLowerCase() === "corretor").length
+  const totalAdmins = usuarios.filter(u => {
+    const roles = (u.permissao || "").toLowerCase().split(',').map(r => r.trim())
+    return roles.includes("admin") || roles.includes("head-admin")
+  }).length
+  const totalCorretores = usuarios.filter(u => {
+    const roles = (u.permissao || "").toLowerCase().split(',').map(r => r.trim())
+    return roles.includes("corretor")
+  }).length
   const usuariosAtivos = usuarios.filter(u => u.status?.toLowerCase() === "ativo").length
 
   const totalElem = document.getElementById("totalUsuarios")
@@ -177,7 +183,10 @@ function filtrarUsuarios() {
     const matchSearch =
       usuario.nome.toLowerCase().includes(search) ||
       usuario.email.toLowerCase().includes(search)
-    const matchPermissao = !filterPermissao || usuario.permissao === filterPermissao
+    
+    const roles = (usuario.permissao || "").toLowerCase().split(',').map(r => r.trim())
+    const matchPermissao = !filterPermissao || roles.includes(filterPermissao.toLowerCase())
+    
     const matchStatus = !filterStatus || usuario.status === filterStatus
 
     return matchSearch && matchPermissao && matchStatus
@@ -234,6 +243,7 @@ function configurarEventos() {
     btnNovoUsuario.addEventListener("click", () => {
       usuarioEmEdicao = null
       document.getElementById("formUsuario").reset()
+      document.querySelectorAll('input[name="usuarioPermissao"]').forEach(cb => cb.checked = false);
       document.getElementById("modalTitle").textContent = "Novo Usuário"
       document.getElementById("usuarioPasswordGroup").style.display = "block"
       document.getElementById("usuarioPassword").setAttribute("required", "required")
@@ -370,7 +380,11 @@ async function salvarUsuario() {
   const email = (document.getElementById("usuarioEmail")?.value || "").trim()
   const username = (document.getElementById("usuarioUsername")?.value || "").trim()
   const password = (document.getElementById("usuarioPassword")?.value || "").trim()
-  const permissao = document.getElementById("usuarioPermissao")?.value
+  
+  const checkboxes = document.querySelectorAll('input[name="usuarioPermissao"]:checked');
+  const permissoes = Array.from(checkboxes).map(cb => cb.value);
+  const permissao = permissoes.join(",");
+
   const status = document.getElementById("usuarioStatus")?.value
   const telefone = (document.getElementById("usuarioTelefone")?.value || "").trim()
   const departamento = (document.getElementById("usuarioDepartamento")?.value || "").trim()
@@ -386,28 +400,29 @@ async function salvarUsuario() {
   }
 
   const usuarioLogado = obterUsuarioLogado()
-  const cargoLogado = usuarioLogado.cargo?.toLowerCase()
+  const cargosLogado = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
 
   if (usuarioEmEdicao) {
     const usuarioASerEditado = usuarios.find(u => u.id === usuarioEmEdicao)
-    const cargoAlvo = usuarioASerEditado?.permissao?.toLowerCase()
+    const cargosAlvo = usuarioASerEditado?.permissao?.toLowerCase().split(',').map(c => c.trim())
 
-    if (cargoLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+    if (cargosLogado.includes("admin") && !cargosLogado.includes("head-admin") && (cargosAlvo.includes("admin") || cargosAlvo.includes("head-admin"))) {
       mostrarNotificacao("Admin não pode editar usuários com cargo igual ou superior", "aviso")
       return
     }
 
-    if (cargoLogado === "corretor") {
+    if (cargosLogado.includes("corretor") && !cargosLogado.includes("admin") && !cargosLogado.includes("head-admin")) {
       mostrarNotificacao("Você não tem permissão para editar usuários", "aviso")
       return
     }
   } else {
-    if (cargoLogado === "admin" && (permissao.toLowerCase() === "admin" || permissao.toLowerCase() === "head-admin")) {
+    const cargosNovos = permissao.toLowerCase().split(',').map(c => c.trim())
+    if (cargosLogado.includes("admin") && !cargosLogado.includes("head-admin") && (cargosNovos.includes("admin") || cargosNovos.includes("head-admin"))) {
       mostrarNotificacao("Admin não pode criar usuários com cargo admin ou superior", "aviso")
       return
     }
 
-    if (cargoLogado === "corretor") {
+    if (cargosLogado.includes("corretor") && !cargosLogado.includes("admin") && !cargosLogado.includes("head-admin")) {
       mostrarNotificacao("Você não tem permissão para criar usuários", "aviso")
       return
     }
@@ -461,27 +476,23 @@ async function salvarUsuario() {
 
 function atualizarOpcoesCargo() {
   const usuarioLogado = obterUsuarioLogado()
-  const cargoLogado = usuarioLogado?.cargo?.toLowerCase()
-  const selectCargo = document.getElementById("usuarioPermissao")
+  const cargosLogado = usuarioLogado?.cargo?.toLowerCase().split(',').map(c => c.trim())
+  const checkboxes = document.querySelectorAll('input[name="usuarioPermissao"]')
 
-  if (!selectCargo) return
-
-  const opcoes = selectCargo.querySelectorAll("option")
-  
-  opcoes.forEach(opcao => {
-    opcao.disabled = false
+  checkboxes.forEach(cb => {
+    cb.disabled = false
   })
 
-  if (cargoLogado === "admin") {
-    opcoes.forEach(opcao => {
-      const valor = opcao.value.toLowerCase()
+  if (cargosLogado.includes("admin") && !cargosLogado.includes("head-admin")) {
+    checkboxes.forEach(cb => {
+      const valor = cb.value.toLowerCase()
       if (valor === "admin" || valor === "head-admin") {
-        opcao.disabled = true
+        cb.disabled = true
       }
     })
-  } else if (cargoLogado === "corretor") {
-    opcoes.forEach(opcao => {
-      if (opcao.value) opcao.disabled = true
+  } else if (cargosLogado.includes("corretor") && !cargosLogado.includes("admin") && !cargosLogado.includes("head-admin")) {
+    checkboxes.forEach(cb => {
+      cb.disabled = true
     })
   }
 }
@@ -491,10 +502,10 @@ function editarUsuario(id) {
   if (!usuario) return
 
   const usuarioLogado = obterUsuarioLogado()
-  const cargoLogado = usuarioLogado.cargo?.toLowerCase()
-  const cargoAlvo = usuario.permissao?.toLowerCase()
+  const cargosLogado = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
+  const cargosAlvo = usuario.permissao?.toLowerCase().split(',').map(c => c.trim())
 
-  if (cargoLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+  if (cargosLogado.includes("admin") && !cargosLogado.includes("head-admin") && (cargosAlvo.includes("admin") || cargosAlvo.includes("head-admin"))) {
     mostrarNotificacao("Admin não pode editar usuários com cargo igual ou superior", "aviso")
     return
   }
@@ -504,7 +515,19 @@ function editarUsuario(id) {
   document.getElementById("usuarioNome").value = usuario.nome
   document.getElementById("usuarioEmail").value = usuario.email
   document.getElementById("usuarioUsername").value = usuario.username
-  document.getElementById("usuarioPermissao").value = usuario.permissao
+  
+  // Reset checkboxes
+  document.querySelectorAll('input[name="usuarioPermissao"]').forEach(cb => cb.checked = false);
+  
+  // Set checkboxes
+  if (usuario.permissao) {
+      const permissoes = usuario.permissao.split(',').map(p => p.trim());
+      permissoes.forEach(p => {
+          const cb = document.querySelector(`input[name="usuarioPermissao"][value="${p}"]`);
+          if (cb) cb.checked = true;
+      });
+  }
+
   document.getElementById("usuarioStatus").value = usuario.status || "ativo"
   document.getElementById("usuarioTelefone").value = usuario.telefone || ""
   document.getElementById("usuarioDepartamento").value = usuario.departamento || ""
@@ -516,11 +539,23 @@ function editarUsuario(id) {
 }
 
 function obterPermissoesFormatadas(cargo) {
-  const permissoes = PERMISSIONS[cargo?.toLowerCase()] || {}
+  if (!cargo) return "";
+  const cargos = cargo.split(',').map(c => c.trim());
+  let todasPermissoes = {};
+
+  cargos.forEach(c => {
+      const perms = PERMISSIONS[c.toLowerCase()] || {};
+      for (const [modulo, acoes] of Object.entries(perms)) {
+          if (!todasPermissoes[modulo]) todasPermissoes[modulo] = new Set();
+          acoes.forEach(acao => todasPermissoes[modulo].add(acao));
+      }
+  });
+
   const tags = []
 
-  for (const [modulo, acoes] of Object.entries(permissoes)) {
-    if (Array.isArray(acoes) && acoes.length > 0) {
+  for (const [modulo, acoesSet] of Object.entries(todasPermissoes)) {
+    const acoes = Array.from(acoesSet);
+    if (acoes.length > 0) {
       acoes.forEach((acao) => {
         const iconMap = {
           'create': 'fa-plus',
@@ -593,6 +628,8 @@ async function excluirUsuario(id) {
 }
 
 function formatarCargo(cargo) {
+  if (!cargo) return "";
+  const cargos = cargo.split(',').map(c => c.trim());
   const map = {
     "head-admin": "Head Admin",
     admin: "Admin",
@@ -600,7 +637,8 @@ function formatarCargo(cargo) {
     visualizar: "Visualizar",
     visualizador: "Visualizar"
   }
-  return map[cargo?.toLowerCase()] || (cargo ? cargo.charAt(0).toUpperCase() + cargo.slice(1) : "")
+  
+  return cargos.map(c => map[c.toLowerCase()] || (c ? c.charAt(0).toUpperCase() + c.slice(1) : "")).join(", ");
 }
 
 function atualizarCheckboxesUsuarios() {
@@ -633,7 +671,7 @@ async function excluirSelecionadosUsuarios() {
   }
 
   const usuario = obterUsuarioLogado()
-  const cargoLogado = usuario?.cargo?.toLowerCase()
+  const cargosLogado = usuario?.cargo?.toLowerCase().split(',').map(c => c.trim())
 
   for (const id of usuariosSelecionados) {
     const usr = usuarios.find((u) => u.id === id)
@@ -643,8 +681,8 @@ async function excluirSelecionadosUsuarios() {
       return
     }
 
-    const cargoAlvo = usr?.permissao?.toLowerCase()
-    if (cargoLogado === "admin" && (cargoAlvo === "admin" || cargoAlvo === "head-admin")) {
+    const cargosAlvo = usr?.permissao?.toLowerCase().split(',').map(c => c.trim())
+    if (cargosLogado.includes("admin") && !cargosLogado.includes("head-admin") && (cargosAlvo.includes("admin") || cargosAlvo.includes("head-admin"))) {
       mostrarNotificacao(`Admin não pode excluir usuário(s) com cargo igual ou superior`, "aviso")
       return
     }

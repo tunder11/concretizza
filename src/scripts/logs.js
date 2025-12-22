@@ -32,7 +32,7 @@ function carregarDadosUsuario() {
       userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
     }
 
-    if (usuarioLogado.cargo?.toLowerCase() === "admin") {
+    if (usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("admin")) {
       const btnLimparLogs = document.getElementById("btnLimparLogs")
       if (btnLimparLogs) {
         btnLimparLogs.style.display = "none"
@@ -167,7 +167,7 @@ function configurarEventos() {
   if (btnLimparLogs) {
     btnLimparLogs.addEventListener("click", () => {
       const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
-      if (usuarioLogado?.cargo?.toLowerCase() === "admin") {
+      if (usuarioLogado?.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("admin")) {
         mostrarNotificacao("Admin não tem permissão para deletar logs", "aviso")
         return
       }
@@ -347,13 +347,15 @@ function formatarData(data) {
 }
 
 function formatarCargo(cargo) {
+  if (!cargo) return ""
+  const cargos = cargo.split(',').map(c => c.trim())
   const map = {
     "head-admin": "Head Admin",
     admin: "Admin",
     corretor: "Corretor(a)",
     visualizar: "Visualizar"
   }
-  return map[cargo?.toLowerCase()] || (cargo ? cargo.charAt(0).toUpperCase() + cargo.slice(1) : "")
+  return cargos.map(c => map[c.toLowerCase()] || c).join(", ")
 }
 
 function abrirDetalhesLog(index) {

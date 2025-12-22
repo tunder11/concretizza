@@ -46,9 +46,15 @@ function obterUsuarioLogado() {
 
 function obterPermissao(usuario, modulo, acao) {
   if (!usuario || !usuario.cargo) return false
-  const perms = PERMISSIONS[usuario.cargo.toLowerCase()]
-  if (!perms) return false
-  return perms[modulo]?.includes(acao) || false
+  const cargos = usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+  
+  for (const cargo of cargos) {
+      const perms = PERMISSIONS[cargo]
+      if (perms && perms[modulo]?.includes(acao)) {
+          return true
+      }
+  }
+  return false
 }
 
 function podeEditar(modulo = 'clientes') {
@@ -73,23 +79,25 @@ function podeDeletar(modulo = 'clientes') {
 
 function isAdmin() {
   const usuario = obterUsuarioLogado()
-  return usuario?.cargo?.toLowerCase() === 'admin'
+  if (!usuario || !usuario.cargo) return false
+  const cargos = usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+  return cargos.includes('admin')
 }
 
 function isHeadAdmin() {
   const usuario = obterUsuarioLogado()
-  return usuario?.cargo?.toLowerCase() === 'head-admin'
+  if (!usuario || !usuario.cargo) return false
+  const cargos = usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+  return cargos.includes('head-admin')
 }
 
 function isAdminOrHeadAdmin() {
   const usuario = obterUsuarioLogado()
   console.log("[PERMISSION] obterUsuarioLogado():", usuario)
-  const cargo = usuario?.cargo?.toLowerCase()
-  console.log("[PERMISSION] cargo toLowerCase:", cargo)
-  console.log("[PERMISSION] typeof cargo:", typeof cargo)
-  console.log("[PERMISSION] cargo === 'admin':", cargo === 'admin')
-  console.log("[PERMISSION] cargo === 'head-admin':", cargo === 'head-admin')
-  const result = cargo === 'admin' || cargo === 'head-admin'
+  if (!usuario || !usuario.cargo) return false
+  const cargos = usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+  console.log("[PERMISSION] cargos:", cargos)
+  const result = cargos.includes('admin') || cargos.includes('head-admin')
   console.log("[PERMISSION] isAdminOrHeadAdmin result:", result)
   return result
 }
@@ -101,7 +109,7 @@ function bloqueado(mensagem = 'Você não tem permissão para realizar esta aç�
 
 function formatarCargo(cargo) {
   if (!cargo) return 'User'
-  const cargoLower = cargo.toLowerCase()
+  const cargos = cargo.split(',').map(c => c.trim())
   
   const mapeamento = {
     'head-admin': 'Head-Admin',
@@ -112,7 +120,7 @@ function formatarCargo(cargo) {
     'user': 'User'
   }
   
-  return mapeamento[cargoLower] || (cargo.charAt(0).toUpperCase() + cargo.slice(1))
+  return cargos.map(c => mapeamento[c.toLowerCase()] || (c.charAt(0).toUpperCase() + c.slice(1))).join(', ')
 }
 
 function formatarPermissao(permissao) {

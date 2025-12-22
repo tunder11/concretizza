@@ -30,8 +30,8 @@ function carregarDadosUsuario() {
 
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      const cargo = usuarioLogado.cargo?.toLowerCase()
-      if (cargo === "admin" || cargo === "head-admin") {
+      const cargos = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
+      if (cargos.includes("admin") || cargos.includes("head-admin")) {
         adminSection.style.display = "block"
       } else {
         adminSection.style.display = "none"

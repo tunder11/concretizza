@@ -29,8 +29,8 @@ function carregarDadosUsuario() {
 
     const adminSection = document.getElementById("adminSection")
     if (adminSection) {
-      const cargo = usuarioLogado.cargo?.toLowerCase()
-      if (cargo === "admin" || cargo === "head-admin") {
+      const cargos = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
+      if (cargos.includes("admin") || cargos.includes("head-admin")) {
         adminSection.style.display = "block"
       } else {
         adminSection.style.display = "none"
@@ -41,12 +41,13 @@ function carregarDadosUsuario() {
 
 function formatarCargo(cargo) {
   if (!cargo) return ""
+  const cargos = cargo.split(',').map(c => c.trim())
   const map = {
     "head-admin": "Head Admin",
     admin: "Administrador",
     padrao: "Corretor",
   }
-  return map[cargo.toLowerCase()] || cargo
+  return cargos.map(c => map[c.toLowerCase()] || c).join(", ")
 }
 
 let agendamentos = []

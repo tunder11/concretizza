@@ -209,14 +209,21 @@
                         <input type="password" id="usuarioPassword" placeholder="Mínimo 6 caracteres" required>
                     </div>
                     <div class="form-group">
-                        <label for="usuarioPermissao">Nível de Permissão *</label>
-                        <select id="usuarioPermissao" required>
-                            <option value="">Selecione</option>
-                            <option value="head-admin">Head-Admin - Gerencia admins + Acesso total</option>
-                            <option value="admin">Admin - Acesso total</option>
-                            <option value="corretor">Corretor - Criar e editar</option>
-                            <option value="visualizar">Visualizar - Apenas visualizar</option>
-                        </select>
+                        <label>Nível de Permissão *</label>
+                        <div class="checkbox-group" id="usuarioPermissaoContainer" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="usuarioPermissao" value="head-admin"> Head-Admin - Gerencia admins + Acesso total
+                            </label>
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="usuarioPermissao" value="admin"> Admin - Acesso total
+                            </label>
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="usuarioPermissao" value="corretor"> Corretor - Criar e editar
+                            </label>
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="usuarioPermissao" value="visualizar"> Visualizar - Apenas visualizar
+                            </label>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="usuarioStatus">Status *</label>
