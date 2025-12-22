@@ -397,6 +397,15 @@ function configurarEventos() {
       el.addEventListener("change", renderizarTabela)
     }
   })
+
+  // Fechar modal ao clicar fora
+  window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal")) {
+      e.target.style.display = "none"
+      e.target.classList.remove("show")
+      e.target.classList.remove("active")
+    }
+  })
   
   // Chart Period
   const chartPeriod = document.getElementById("chartPeriod")

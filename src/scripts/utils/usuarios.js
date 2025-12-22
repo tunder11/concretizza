@@ -303,14 +303,14 @@ function configurarEventos() {
     })
   }
 
-  const modalConfirmacaoUsuario = document.getElementById("modalConfirmacaoUsuario")
-  if (modalConfirmacaoUsuario) {
-    modalConfirmacaoUsuario.addEventListener("click", (e) => {
-      if (e.target === modalConfirmacaoUsuario) {
-        modalConfirmacaoUsuario.style.display = "none"
-      }
-    })
-  }
+  // Fechar modal ao clicar fora
+  window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal")) {
+      e.target.style.display = "none"
+      e.target.classList.remove("show")
+      e.target.classList.remove("active")
+    }
+  })
 
   const selectAll = document.getElementById("selectAll")
   if (selectAll) {

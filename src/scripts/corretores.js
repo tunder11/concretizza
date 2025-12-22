@@ -378,14 +378,14 @@ function configurarEventos() {
     document.querySelector(".sidebar").style.transform = "translateX(0)"
   })
 
-  const modalConfirmarRemocao = document.getElementById("modalConfirmarRemocao")
-  if (modalConfirmarRemocao) {
-    modalConfirmarRemocao.addEventListener("click", (e) => {
-      if (e.target === modalConfirmarRemocao) {
-        modalConfirmarRemocao.classList.remove("show")
-      }
-    })
-  }
+  // Fechar modal ao clicar fora
+  window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal")) {
+      e.target.style.display = "none"
+      e.target.classList.remove("show")
+      e.target.classList.remove("active")
+    }
+  })
 }
 
 function filtrarCorretores() {

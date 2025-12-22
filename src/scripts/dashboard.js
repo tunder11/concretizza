@@ -128,6 +128,15 @@ function configurarEventos() {
     btnConfirmarLogout.addEventListener("click", fazerLogout)
   }
 
+  // Fechar modal ao clicar fora
+  window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal")) {
+      e.target.style.display = "none"
+      e.target.classList.remove("show")
+      e.target.classList.remove("active")
+    }
+  })
+
   const navItems = document.querySelectorAll(".nav-item[data-page]")
   navItems.forEach((item) => {
     item.addEventListener("click", (e) => {

@@ -395,14 +395,14 @@ function configurarEventos() {
     })
   }
 
-  const modalConfirmacao = document.getElementById("modalConfirmacao")
-  if (modalConfirmacao) {
-    modalConfirmacao.addEventListener("click", (e) => {
-      if (e.target === modalConfirmacao) {
-        modalConfirmacao.style.display = "none"
-      }
-    })
-  }
+  // Fechar modal ao clicar fora
+  window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal")) {
+      e.target.style.display = "none"
+      e.target.classList.remove("show")
+      e.target.classList.remove("active")
+    }
+  })
 }
 
 function filtrarClientes() {

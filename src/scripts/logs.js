@@ -194,10 +194,12 @@ function configurarEventos() {
     btnConfirmarDeleteLogs.addEventListener("click", limparLogs)
   }
 
+  // Fechar modal ao clicar fora
   window.addEventListener("click", (e) => {
-    const modal = document.getElementById("modalConfirmacaoDeleteLogs")
-    if (e.target === modal) {
-      modal.style.display = "none"
+    if (e.target.classList.contains("modal")) {
+      e.target.style.display = "none"
+      e.target.classList.remove("show")
+      e.target.classList.remove("active")
     }
   })
 
@@ -230,12 +232,7 @@ function configurarEventos() {
     })
   }
   
-  window.addEventListener("click", (e) => {
-    const modal = document.getElementById("modalDetalhesLog")
-    if (e.target === modal) {
-      modal.style.display = "none"
-    }
-  })
+
 }
 
 function filtrarLogs() {

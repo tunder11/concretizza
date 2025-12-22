@@ -474,11 +474,11 @@ function alterarPermissao(clienteId, usuarioId, concedido) {
 
 // Fechar modals ao clicar fora
 window.addEventListener("click", (event) => {
-  const clienteModal = document.getElementById("clienteModal")
-  const usuarioModal = document.getElementById("usuarioModal")
-
-  if (event.target === clienteModal) clienteModal.classList.remove("active")
-  if (event.target === usuarioModal) usuarioModal.classList.remove("active")
+  if (event.target.classList.contains("modal")) {
+    event.target.style.display = "none"
+    event.target.classList.remove("show")
+    event.target.classList.remove("active")
+  }
 })
 
 // Inicializar com tela de login
