@@ -68,11 +68,24 @@ async function carregarClientes() {
 }
 
 async function carregarCorretores() {
+  const usuario = obterUsuarioLogado()
+  const isAdminOrHead = usuario && getCargosAsArray(usuario.cargo).some(c => c.toLowerCase().includes('admin') || c.toLowerCase().includes('head-admin'))
+  
+  if (!isAdminOrHead) {
+    corretores = []
+    return
+  }
+
   try {
     const usuarios = await obterUsuarios()
-    corretores = usuarios.filter(u => getCargosAsArray(u.cargo).some(c => c.toLowerCase().includes('corretor')))
+    if (usuarios && Array.isArray(usuarios)) {
+      corretores = usuarios.filter(u => getCargosAsArray(u.cargo).some(c => c.toLowerCase().includes('corretor')))
+    } else {
+      corretores = []
+    }
   } catch (error) {
     console.error("Erro ao carregar corretores:", error)
+    corretores = []
   }
 }
 
@@ -118,7 +131,7 @@ function aplicarPermissoes() {
   const cargos = getCargosAsArray(usuario?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
 
-  if (!podeVer) {
+  if (!podeVer && !isCorretor) {
     window.location.href = "/"
     return
   }
