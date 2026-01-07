@@ -725,6 +725,18 @@ function atualizarBotoesBulk() {
   if (btnRemover) {
     btnRemover.style.display = clientesCorretorSelecionados.length > 0 ? "inline-block" : "none"
   }
+
+  // Hide/show bulk-actions containers based on whether any buttons are visible
+  const bulkActionsDisponiveis = document.querySelector("#clientesDisponiveisTable").closest(".content-card").querySelector(".bulk-actions")
+  const bulkActionsCorretor = document.querySelector("#clientesCorretorTable").closest(".modal-body").querySelector(".bulk-actions")
+
+  if (bulkActionsDisponiveis) {
+    bulkActionsDisponiveis.style.display = clientesSelecionados.length > 0 ? "flex" : "none"
+  }
+
+  if (bulkActionsCorretor) {
+    bulkActionsCorretor.style.display = clientesCorretorSelecionados.length > 0 ? "flex" : "none"
+  }
 }
 
 function abrirModalAtribuirBulk() {
