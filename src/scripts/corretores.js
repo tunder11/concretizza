@@ -65,9 +65,10 @@ async function carregarCorretoresEClientes() {
     clientesFiltrados = clientes.filter(c => !c.atribuido_a)
     
     renderizarCorretores()
-    atualizarClientesDisponiveis()
-    atualizarEstatisticas()
-    mostrarCarregando(false)
+  atualizarClientesDisponiveis()
+  atualizarEstatisticas()
+  configurarEventosBulk()
+  mostrarCarregando(false)
   } catch (error) {
     console.error("Erro ao carregar dados:", error)
     mostrarNotificacao("Erro ao carregar dados: " + error.message, "erro")
@@ -185,10 +186,11 @@ function atualizarClientesDisponiveis() {
   const clientesPagina = clientesDisponiveis.slice(inicio, fim)
   
   if (clientesPagina.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center">Nenhum cliente sem atribuição</td></tr>`
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum cliente sem atribuição</td></tr>`
   } else {
     tbody.innerHTML = clientesPagina.map(cliente => `
       <tr>
+        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}"></td>
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${cliente.email || "-"}</td>
@@ -275,19 +277,22 @@ async function abrirClientesCorretor(corretorId, corretorNome) {
   try {
     document.getElementById("nomeCorretorModal").textContent = corretorNome
     corretorAtualSelecionado = { id: corretorId, nome: corretorNome }
-    
+
     const tbody = document.getElementById("clientesCorretorTable")
     tbody.innerHTML = `<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Carregando clientes...</td></tr>`
-    
-    document.getElementById("modalClientesCorretor").classList.add("show")
+
+    const modal = document.getElementById("modalClientesCorretor")
+    modal.style.display = "" // Remove inline display style that may prevent modal from opening
+    modal.classList.add("show")
     
     const clientesCorretor = await fazerRequisicao(`/api/corretores/${corretorId}/clientes?t=${Date.now()}`, { method: "GET" })
     
     if (clientesCorretor.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center">Este corretor não possui clientes atribuídos</td></tr>`
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center">Este corretor não possui clientes atribuídos</td></tr>`
     } else {
       tbody.innerHTML = clientesCorretor.map(cliente => `
         <tr>
+          <td><input type="checkbox" class="cliente-corretor-checkbox" data-cliente-id="${cliente.id}"></td>
           <td>${cliente.nome}</td>
           <td>${cliente.telefone}</td>
           <td>${cliente.email || "-"}</td>
@@ -429,26 +434,27 @@ function filtrarCorretores() {
 function filtrarClientesDisponiveis() {
   const search = document.getElementById("searchClientesDisponiveis").value.toLowerCase()
   const status = document.getElementById("filterStatusClientes").value
-  
+
   const clientesDisponiveis = clientes.filter(cliente => {
     if (cliente.atribuido_a) return false
     const matchSearch = cliente.nome.toLowerCase().includes(search)
     const matchStatus = !status || cliente.status === status
     return matchSearch && matchStatus
   })
-  
+
   currentPageDisponiveis = 1
-  
+
   const tbody = document.getElementById("clientesDisponiveisTable")
   const inicio = (currentPageDisponiveis - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesDisponiveis.slice(inicio, fim)
-  
+
   if (clientesPagina.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center">Nenhum cliente encontrado</td></tr>`
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum cliente encontrado</td></tr>`
   } else {
     tbody.innerHTML = clientesPagina.map(cliente => `
       <tr>
+        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}"></td>
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${cliente.email || "-"}</td>
@@ -462,7 +468,7 @@ function filtrarClientesDisponiveis() {
       </tr>
     `).join("")
   }
-  
+
   atualizarPaginacaoDisponiveis(clientesDisponiveis.length)
 }
 
@@ -482,46 +488,67 @@ function filtrarClientesCorretor() {
 
 async function atribuirCliente(e) {
   e.preventDefault()
-  
+
   console.log("[ATRIBUIR] Iniciando atribuição...")
   console.log("[ATRIBUIR] Corretor selecionado:", corretorAtualSelecionado)
-  
-  let clienteId = corretorAtualSelecionado?.clienteId
+
+  let clienteIds = []
   let corretorId = corretorAtualSelecionado?.id
-  
-  // Se não veio do objeto selecionado, tenta pegar dos selects
-  if (!clienteId) {
-    const selectCliente = document.getElementById("clienteAtribuir")
-    clienteId = selectCliente ? selectCliente.value : null
+
+  // Check if it's a bulk assignment
+  if (corretorAtualSelecionado?.clientes) {
+    clienteIds = corretorAtualSelecionado.clientes.map(c => c.id)
+  } else {
+    // Single assignment
+    let clienteId = corretorAtualSelecionado?.clienteId
+
+    // Se não veio do objeto selecionado, tenta pegar dos selects
+    if (!clienteId) {
+      const selectCliente = document.getElementById("clienteAtribuir")
+      clienteId = selectCliente ? selectCliente.value : null
+    }
+
+    if (clienteId) {
+      clienteIds = [clienteId]
+    }
   }
-  
+
+  // Se não veio do objeto selecionado, tenta pegar do select
   if (!corretorId) {
     const selectCorretor = document.getElementById("corretorSelect")
     corretorId = selectCorretor ? selectCorretor.value : null
   }
-  
-  console.log("[ATRIBUIR] IDs finais:", { clienteId, corretorId })
-  
-  if (!clienteId || clienteId === "") {
-    mostrarNotificacao("Selecione um cliente", "aviso")
+
+  console.log("[ATRIBUIR] IDs finais:", { clienteIds, corretorId })
+
+  if (clienteIds.length === 0) {
+    mostrarNotificacao("Selecione pelo menos um cliente", "aviso")
     return
   }
-  
+
   if (!corretorId || corretorId === "") {
     mostrarNotificacao("Selecione um corretor", "aviso")
     return
   }
-  
+
   try {
     mostrarCarregando(true) // Mostrar loading durante a requisição
-    
-    await fazerRequisicao(`/api/corretores/${corretorId}/clientes/${clienteId}`, {
-      method: "POST"
-    })
-    
-    mostrarNotificacao("Cliente atribuído com sucesso!", "sucesso")
+
+    const promises = clienteIds.map(clienteId =>
+      fazerRequisicao(`/api/corretores/${corretorId}/clientes/${clienteId}`, {
+        method: "POST"
+      })
+    )
+
+    await Promise.all(promises)
+
+    const mensagem = clienteIds.length === 1
+      ? "Cliente atribuído com sucesso!"
+      : `${clienteIds.length} cliente(s) atribuído(s) com sucesso!`
+
+    mostrarNotificacao(mensagem, "sucesso")
     document.getElementById("modalAtribuir").classList.remove("show")
-    
+
     await carregarCorretoresEClientes()
   } catch (error) {
     console.error("Erro ao atribuir cliente:", error)
@@ -643,4 +670,157 @@ function formatarInteresse(interesse) {
     vender: "Vender"
   }
   return mapa[interesse] || interesse
+}
+
+function configurarEventosBulk() {
+  // Select all checkbox for available clients
+  const selectAllDisponiveis = document.getElementById("selectAllClientesDisponiveis")
+  if (selectAllDisponiveis) {
+    selectAllDisponiveis.addEventListener("change", function() {
+      const checkboxes = document.querySelectorAll(".cliente-checkbox")
+      checkboxes.forEach(cb => cb.checked = this.checked)
+      atualizarBotoesBulk()
+    })
+  }
+
+  // Select all checkbox for broker clients
+  const selectAllCorretor = document.getElementById("selectAllClientesCorretor")
+  if (selectAllCorretor) {
+    selectAllCorretor.addEventListener("change", function() {
+      const checkboxes = document.querySelectorAll(".cliente-corretor-checkbox")
+      checkboxes.forEach(cb => cb.checked = this.checked)
+      atualizarBotoesBulk()
+    })
+  }
+
+  // Individual checkboxes
+  document.addEventListener("change", function(e) {
+    if (e.target.classList.contains("cliente-checkbox") || e.target.classList.contains("cliente-corretor-checkbox")) {
+      atualizarBotoesBulk()
+    }
+  })
+
+  // Bulk assign button
+  const btnAtribuirSelecionados = document.getElementById("btnAtribuirSelecionados")
+  if (btnAtribuirSelecionados) {
+    btnAtribuirSelecionados.addEventListener("click", abrirModalAtribuirBulk)
+  }
+
+  // Bulk remove button
+  const btnRemoverSelecionados = document.getElementById("btnRemoverSelecionados")
+  if (btnRemoverSelecionados) {
+    btnRemoverSelecionados.addEventListener("click", removerClientesSelecionados)
+  }
+}
+
+function atualizarBotoesBulk() {
+  const clientesSelecionados = document.querySelectorAll(".cliente-checkbox:checked")
+  const btnAtribuir = document.getElementById("btnAtribuirSelecionados")
+  if (btnAtribuir) {
+    btnAtribuir.style.display = clientesSelecionados.length > 0 ? "inline-block" : "none"
+  }
+
+  const clientesCorretorSelecionados = document.querySelectorAll(".cliente-corretor-checkbox:checked")
+  const btnRemover = document.getElementById("btnRemoverSelecionados")
+  if (btnRemover) {
+    btnRemover.style.display = clientesCorretorSelecionados.length > 0 ? "inline-block" : "none"
+  }
+}
+
+function abrirModalAtribuirBulk() {
+  const clientesSelecionados = Array.from(document.querySelectorAll(".cliente-checkbox:checked")).map(cb => ({
+    id: cb.dataset.clienteId,
+    nome: cb.closest("tr").querySelector("td:nth-child(2)").textContent
+  }))
+
+  if (clientesSelecionados.length === 0) {
+    mostrarNotificacao("Selecione pelo menos um cliente", "aviso")
+    return
+  }
+
+  corretorAtualSelecionado = { clientes: clientesSelecionados }
+
+  document.getElementById("modalAtribuir").querySelector("h2").textContent = "Atribuir Clientes ao Corretor"
+
+  document.getElementById("groupCorretorNome").style.display = "none"
+  document.getElementById("groupCorretorSelect").style.display = "flex"
+  document.getElementById("groupClienteNome").style.display = "none"
+  document.getElementById("groupClienteSelect").style.display = "none"
+  document.getElementById("groupClientesMultiplos").style.display = "flex"
+
+  // Ajustar validação dos campos
+  document.getElementById("corretorSelect").required = true
+  document.getElementById("clienteAtribuir").required = false
+
+  document.getElementById("clientesSelecionadosCount").value = `${clientesSelecionados.length} cliente(s) selecionado(s)`
+
+  const selectCorretor = document.getElementById("corretorSelect")
+  selectCorretor.innerHTML = `<option value="">-- Selecione um corretor --</option>`
+  selectCorretor.disabled = false
+
+  corretores.forEach(corretor => {
+    const option = document.createElement("option")
+    option.value = corretor.id
+    option.textContent = corretor.nome
+    selectCorretor.appendChild(option)
+  })
+
+  document.getElementById("modalAtribuir").classList.add("show")
+}
+
+async function removerClientesSelecionados() {
+  const clientesSelecionados = Array.from(document.querySelectorAll(".cliente-corretor-checkbox:checked")).map(cb => ({
+    id: cb.dataset.clienteId,
+    nome: cb.closest("tr").querySelector("td:nth-child(2)").textContent
+  }))
+
+  if (clientesSelecionados.length === 0) {
+    mostrarNotificacao("Selecione pelo menos um cliente", "aviso")
+    return
+  }
+
+  const corretorId = corretorAtualSelecionado.id
+  const corretorNome = corretorAtualSelecionado.nome
+
+  document.getElementById("nomeClienteRemover").textContent = `${clientesSelecionados.length} cliente(s) selecionado(s)`
+  document.getElementById("modalConfirmarRemocao").classList.add("show")
+
+  const btnConfirmar = document.getElementById("btnConfirmarRemocao")
+  const btnCancelar = document.getElementById("btnCancelarRemocao")
+  const closeBtn = document.getElementById("closeConfirmarRemocao")
+
+  const confirmarRemocao = async () => {
+    try {
+      mostrarCarregando(true)
+      const promises = clientesSelecionados.map(cliente =>
+        fazerRequisicao(`/api/corretores/${corretorId}/clientes/${cliente.id}`, {
+          method: "DELETE"
+        })
+      )
+      await Promise.all(promises)
+
+      mostrarNotificacao(`${clientesSelecionados.length} cliente(s) removido(s) com sucesso!`, "sucesso")
+      document.getElementById("modalConfirmarRemocao").classList.remove("show")
+
+      await carregarCorretoresEClientes()
+      await abrirClientesCorretor(corretorId, corretorNome)
+    } catch (error) {
+      console.error("Erro ao remover clientes:", error)
+      mostrarNotificacao("Erro ao remover clientes: " + error.message, "erro")
+      document.getElementById("modalConfirmarRemocao").classList.remove("show")
+    } finally {
+      mostrarCarregando(false)
+    }
+  }
+
+  const cancelarRemocao = () => {
+    document.getElementById("modalConfirmarRemocao").classList.remove("show")
+    btnConfirmar.removeEventListener("click", confirmarRemocao)
+    btnCancelar.removeEventListener("click", cancelarRemocao)
+    closeBtn.removeEventListener("click", cancelarRemocao)
+  }
+
+  btnConfirmar.addEventListener("click", confirmarRemocao)
+  btnCancelar.addEventListener("click", cancelarRemocao)
+  closeBtn.addEventListener("click", cancelarRemocao)
 }

@@ -155,12 +155,18 @@
                             <option value="prioridade">Prioridade</option>
                             <option value="aguardando">Aguardando</option>
                         </select>
+                        <div class="bulk-actions">
+                            <button class="btn-primary" id="btnAtribuirSelecionados" style="display: none;">
+                                <i class="fas fa-link"></i> Atribuir Selecionados
+                            </button>
+                        </div>
                     </div>
 
                     <div class="table-responsive">
                         <table class="table">
                             <thead>
                                 <tr>
+                                    <th><input type="checkbox" id="selectAllClientesDisponiveis"></th>
                                     <th>Nome</th>
                                     <th>Telefone</th>
                                     <th>Email</th>
@@ -219,6 +225,10 @@
                             <option value="">-- Selecione um cliente --</option>
                         </select>
                     </div>
+                    <div class="form-group" id="groupClientesMultiplos" style="display: none;">
+                        <label>Clientes Selecionados</label>
+                        <input type="text" id="clientesSelecionadosCount" readonly class="input-disabled">
+                    </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
                         <button type="submit" class="btn-primary">Atribuir</button>
@@ -237,11 +247,17 @@
             <div class="modal-body">
                 <div class="filter-bar">
                     <input type="text" id="searchClientesCorretor" placeholder="Buscar cliente..." class="search-input">
+                    <div class="bulk-actions">
+                        <button class="btn-danger" id="btnRemoverSelecionados" style="display: none;">
+                            <i class="fas fa-unlink"></i> Remover Selecionados
+                        </button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
+                                <th><input type="checkbox" id="selectAllClientesCorretor"></th>
                                 <th>Nome</th>
                                 <th>Telefone</th>
                                 <th>Email</th>
