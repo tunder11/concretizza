@@ -45,11 +45,13 @@ let corretores = []
 let corretoresFiltrados = []
 let clientes = []
 let clientesFiltrados = []
+let clientesDisponiveisFiltrados = []
 let corretoresCompletos = {}
 let corretorAtualSelecionado = null
 let currentPageDisponiveis = 1
 const itensPorPagina = 10
 let clientesSelecionadosDisponiveis = []
+let filtrosAtivosDisponiveis = false
 
 async function carregarCorretoresEClientes() {
   mostrarCarregando(true)
@@ -58,13 +60,24 @@ async function carregarCorretoresEClientes() {
       fazerRequisicao(`/api/corretores?t=${Date.now()}`, { method: "GET" }),
       fazerRequisicao(`/api/clientes-disponiveis?t=${Date.now()}`, { method: "GET" })
     ])
-    
+
     corretores = corretoresResp || []
     clientes = clientesResp || []
-    
+
     corretoresFiltrados = [...corretores]
     clientesFiltrados = clientes.filter(c => !c.atribuido_a)
-    
+
+    // Reset filters
+    filtrosAtivosDisponiveis = false
+    clientesDisponiveisFiltrados = []
+    currentPageDisponiveis = 1
+
+    // Clear filter inputs
+    const searchClientesDisponiveis = document.getElementById("searchClientesDisponiveis")
+    const filterStatusClientes = document.getElementById("filterStatusClientes")
+    if (searchClientesDisponiveis) searchClientesDisponiveis.value = ""
+    if (filterStatusClientes) filterStatusClientes.value = ""
+
     renderizarCorretores()
   atualizarClientesDisponiveis()
   atualizarEstatisticas()
@@ -185,19 +198,20 @@ function atualizarClientesDisponiveis() {
   if (!tbody) return
   tbody.removeAttribute("data-loading")
 
-  const clientesDisponiveis = clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado')
+  // Use filtered list if filters are active, otherwise use all available clients
+  const clientesParaExibir = filtrosAtivosDisponiveis ? clientesDisponiveisFiltrados : clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado')
 
   const countEl = document.getElementById("countClientesDisponiveis")
   if (countEl) {
-    countEl.textContent = clientesDisponiveis.length
+    countEl.textContent = clientesParaExibir.length
   }
 
   const inicio = (currentPageDisponiveis - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
-  const clientesPagina = clientesDisponiveis.slice(inicio, fim)
+  const clientesPagina = clientesParaExibir.slice(inicio, fim)
 
   if (clientesPagina.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum cliente sem atribuição</td></tr>`
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center">${filtrosAtivosDisponiveis ? 'Nenhum cliente encontrado' : 'Nenhum cliente sem atribuição'}</td></tr>`
   } else {
     tbody.innerHTML = clientesPagina.map(cliente => `
       <tr>
@@ -216,7 +230,7 @@ function atualizarClientesDisponiveis() {
     `).join("")
   }
 
-  atualizarPaginacaoDisponiveis(clientesDisponiveis.length)
+  atualizarPaginacaoDisponiveis(clientesParaExibir.length)
   atualizarBotoesBulk()
 }
 
@@ -395,7 +409,8 @@ function configurarEventos() {
   })
   
   document.getElementById("nextPageDisponiveis").addEventListener("click", () => {
-    const totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina)
+    const totalClientes = filtrosAtivosDisponiveis ? clientesDisponiveisFiltrados.length : clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado').length
+    const totalPaginas = Math.ceil(totalClientes / itensPorPagina)
     if (currentPageDisponiveis < totalPaginas) {
       currentPageDisponiveis++
       atualizarClientesDisponiveis()
@@ -487,47 +502,22 @@ function filtrarClientesDisponiveis() {
   const search = document.getElementById("searchClientesDisponiveis").value.toLowerCase()
   const status = document.getElementById("filterStatusClientes").value
 
-  const clientesDisponiveis = clientes.filter(cliente => {
+  clientesDisponiveisFiltrados = clientes.filter(cliente => {
     if (cliente.atribuido_a || cliente.status === 'finalizado') return false
     const matchSearch = cliente.nome.toLowerCase().includes(search)
     const matchStatus = !status || cliente.status === status
     return matchSearch && matchStatus
   })
 
+  filtrosAtivosDisponiveis = search.length > 0 || status.length > 0
+
   const countEl = document.getElementById("countClientesDisponiveis")
   if (countEl) {
-    countEl.textContent = clientesDisponiveis.length
+    countEl.textContent = clientesDisponiveisFiltrados.length
   }
 
   currentPageDisponiveis = 1
-
-  const tbody = document.getElementById("clientesDisponiveisTable")
-  const inicio = (currentPageDisponiveis - 1) * itensPorPagina
-  const fim = inicio + itensPorPagina
-  const clientesPagina = clientesDisponiveis.slice(inicio, fim)
-
-  if (clientesPagina.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum cliente encontrado</td></tr>`
-  } else {
-    tbody.innerHTML = clientesPagina.map(cliente => `
-      <tr>
-        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}" ${clientesSelecionadosDisponiveis.includes(cliente.id.toString()) ? 'checked' : ''}></td>
-        <td>${cliente.nome}</td>
-        <td>${cliente.telefone}</td>
-        <td>${cliente.email || "-"}</td>
-        <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
-        <td>${cliente.valor || "-"}</td>
-        <td>
-          <button class="btn-action btn-edit" onclick="abrirModalAtribuirRapido(${cliente.id}, '${cliente.nome}')">
-            <i class="fas fa-link"></i> Atribuir
-          </button>
-        </td>
-      </tr>
-    `).join("")
-  }
-
-  atualizarPaginacaoDisponiveis(clientesDisponiveis.length)
-  atualizarBotoesBulk()
+  atualizarClientesDisponiveis()
 }
 
 function filtrarClientesCorretor() {
@@ -919,3 +909,4 @@ async function removerClientesSelecionados() {
   closeBtn.addEventListener("click", cancelarRemocao)
 }
   btnConfirmar.addEventListener("click", confirmarRemocao)
+
