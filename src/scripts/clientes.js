@@ -492,7 +492,8 @@ function filtrarClientes() {
   })
 
   currentPage = 1
-  clientesSelecionados = []
+  // Preserve selections that are still in the filtered list
+  clientesSelecionados = clientesSelecionados.filter(id => clientesFiltrados.some(c => c.id === id))
   const selectAll = document.getElementById("selectAll")
   if (selectAll) {
     selectAll.checked = false

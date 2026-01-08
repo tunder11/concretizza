@@ -49,6 +49,7 @@ let corretoresCompletos = {}
 let corretorAtualSelecionado = null
 let currentPageDisponiveis = 1
 const itensPorPagina = 10
+let clientesSelecionadosDisponiveis = []
 
 async function carregarCorretoresEClientes() {
   mostrarCarregando(true)
@@ -183,24 +184,24 @@ function atualizarClientesDisponiveis() {
   const tbody = document.getElementById("clientesDisponiveisTable")
   if (!tbody) return
   tbody.removeAttribute("data-loading")
-  
-  const clientesDisponiveis = clientes.filter(c => !c.atribuido_a)
-  
+
+  const clientesDisponiveis = clientes.filter(c => !c.atribuido_a && c.status !== 'finalizado')
+
   const countEl = document.getElementById("countClientesDisponiveis")
   if (countEl) {
     countEl.textContent = clientesDisponiveis.length
   }
-  
+
   const inicio = (currentPageDisponiveis - 1) * itensPorPagina
   const fim = inicio + itensPorPagina
   const clientesPagina = clientesDisponiveis.slice(inicio, fim)
-  
+
   if (clientesPagina.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum cliente sem atribuição</td></tr>`
   } else {
     tbody.innerHTML = clientesPagina.map(cliente => `
       <tr>
-        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}"></td>
+        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}" ${clientesSelecionadosDisponiveis.includes(cliente.id.toString()) ? 'checked' : ''}></td>
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${cliente.email || "-"}</td>
@@ -214,8 +215,9 @@ function atualizarClientesDisponiveis() {
       </tr>
     `).join("")
   }
-  
+
   atualizarPaginacaoDisponiveis(clientesDisponiveis.length)
+  atualizarBotoesBulk()
 }
 
 function atualizarPaginacaoDisponiveis(totalClientes = 0) {
@@ -461,7 +463,7 @@ function filtrarClientesDisponiveis() {
   const status = document.getElementById("filterStatusClientes").value
 
   const clientesDisponiveis = clientes.filter(cliente => {
-    if (cliente.atribuido_a) return false
+    if (cliente.atribuido_a || cliente.status === 'finalizado') return false
     const matchSearch = cliente.nome.toLowerCase().includes(search)
     const matchStatus = !status || cliente.status === status
     return matchSearch && matchStatus
@@ -484,7 +486,7 @@ function filtrarClientesDisponiveis() {
   } else {
     tbody.innerHTML = clientesPagina.map(cliente => `
       <tr>
-        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}"></td>
+        <td><input type="checkbox" class="cliente-checkbox" data-cliente-id="${cliente.id}" ${clientesSelecionadosDisponiveis.includes(cliente.id.toString()) ? 'checked' : ''}></td>
         <td>${cliente.nome}</td>
         <td>${cliente.telefone}</td>
         <td>${cliente.email || "-"}</td>
@@ -500,6 +502,7 @@ function filtrarClientesDisponiveis() {
   }
 
   atualizarPaginacaoDisponiveis(clientesDisponiveis.length)
+  atualizarBotoesBulk()
 }
 
 function filtrarClientesCorretor() {
@@ -579,6 +582,8 @@ async function atribuirCliente(e) {
     mostrarNotificacao(mensagem, "sucesso")
     document.getElementById("modalAtribuir").classList.remove("show")
 
+    // Limpar seleções após atribuição
+    clientesSelecionadosDisponiveis = []
     await carregarCorretoresEClientes()
   } catch (error) {
     console.error("Erro ao atribuir cliente:", error)
@@ -708,7 +713,17 @@ function configurarEventosBulk() {
   if (selectAllDisponiveis) {
     selectAllDisponiveis.addEventListener("change", function() {
       const checkboxes = document.querySelectorAll(".cliente-checkbox")
-      checkboxes.forEach(cb => cb.checked = this.checked)
+      checkboxes.forEach(cb => {
+        cb.checked = this.checked
+        const clienteId = cb.dataset.clienteId
+        if (this.checked) {
+          if (!clientesSelecionadosDisponiveis.includes(clienteId)) {
+            clientesSelecionadosDisponiveis.push(clienteId)
+          }
+        } else {
+          clientesSelecionadosDisponiveis = clientesSelecionadosDisponiveis.filter(id => id !== clienteId)
+        }
+      })
       atualizarBotoesBulk()
     })
   }
@@ -725,7 +740,17 @@ function configurarEventosBulk() {
 
   // Individual checkboxes
   document.addEventListener("change", function(e) {
-    if (e.target.classList.contains("cliente-checkbox") || e.target.classList.contains("cliente-corretor-checkbox")) {
+    if (e.target.classList.contains("cliente-checkbox")) {
+      const clienteId = e.target.dataset.clienteId
+      if (e.target.checked) {
+        if (!clientesSelecionadosDisponiveis.includes(clienteId)) {
+          clientesSelecionadosDisponiveis.push(clienteId)
+        }
+      } else {
+        clientesSelecionadosDisponiveis = clientesSelecionadosDisponiveis.filter(id => id !== clienteId)
+      }
+      atualizarBotoesBulk()
+    } else if (e.target.classList.contains("cliente-corretor-checkbox")) {
       atualizarBotoesBulk()
     }
   })
@@ -744,10 +769,10 @@ function configurarEventosBulk() {
 }
 
 function atualizarBotoesBulk() {
-  const clientesSelecionados = document.querySelectorAll(".cliente-checkbox:checked")
+  const clientesSelecionados = clientesSelecionadosDisponiveis.length
   const btnAtribuir = document.getElementById("btnAtribuirSelecionados")
   if (btnAtribuir) {
-    btnAtribuir.style.display = clientesSelecionados.length > 0 ? "inline-block" : "none"
+    btnAtribuir.style.display = clientesSelecionados > 0 ? "inline-block" : "none"
   }
 
   const clientesCorretorSelecionados = document.querySelectorAll(".cliente-corretor-checkbox:checked")
@@ -761,7 +786,7 @@ function atualizarBotoesBulk() {
   const bulkActionsCorretor = document.querySelector("#clientesCorretorTable").closest(".modal-body").querySelector(".bulk-actions")
 
   if (bulkActionsDisponiveis) {
-    bulkActionsDisponiveis.style.display = clientesSelecionados.length > 0 ? "flex" : "none"
+    bulkActionsDisponiveis.style.display = clientesSelecionados > 0 ? "flex" : "none"
   }
 
   if (bulkActionsCorretor) {
@@ -769,11 +794,13 @@ function atualizarBotoesBulk() {
   }
 }
 
+
+
 function abrirModalAtribuirBulk() {
-  const clientesSelecionados = Array.from(document.querySelectorAll(".cliente-checkbox:checked")).map(cb => ({
-    id: cb.dataset.clienteId,
-    nome: cb.closest("tr").querySelector("td:nth-child(2)").textContent
-  }))
+  const clientesSelecionados = clientesSelecionadosDisponiveis.map(id => {
+    const cliente = clientes.find(c => c.id.toString() === id)
+    return { id, nome: cliente?.nome || 'Desconhecido' }
+  }).filter(c => c.id)
 
   if (clientesSelecionados.length === 0) {
     mostrarNotificacao("Selecione pelo menos um cliente", "aviso")
@@ -866,3 +893,4 @@ async function removerClientesSelecionados() {
   btnCancelar.addEventListener("click", cancelarRemocao)
   closeBtn.addEventListener("click", cancelarRemocao)
 }
+  btnConfirmar.addEventListener("click", confirmarRemocao)
