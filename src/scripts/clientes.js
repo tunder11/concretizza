@@ -141,9 +141,10 @@ function aplicarPermissoes() {
     tagsGroup.style.display = isAdminOrHeadAdmin() ? "block" : "none"
   }
 
-  const itemsPerPageSelect = document.getElementById("itemsPerPage")
-  if (itemsPerPageSelect) {
-    itemsPerPageSelect.style.display = isAdminOrHeadAdmin() ? "block" : "none"
+  const itemsPerPageContainer = document.querySelector(".items-per-page-container")
+  const itemsPerPageSelect = document.getElementById("itemsPerPageBottom")
+  if (itemsPerPageContainer && itemsPerPageSelect) {
+    itemsPerPageContainer.style.display = isAdminOrHeadAdmin() ? "flex" : "none"
     if (isAdminOrHeadAdmin()) {
       // Load saved preference
       const savedItemsPerPage = localStorage.getItem("clientesItemsPerPage")
@@ -391,7 +392,7 @@ function configurarEventos() {
     filterAtribuicao.addEventListener("change", filtrarClientes)
   }
 
-  const itemsPerPage = document.getElementById("itemsPerPage")
+  const itemsPerPage = document.getElementById("itemsPerPageBottom")
   if (itemsPerPage) {
     itemsPerPage.addEventListener("change", (e) => {
       itensPorPagina = parseInt(e.target.value)

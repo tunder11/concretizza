@@ -618,6 +618,31 @@ body {
   font-weight: 600;
 }
 
+/* Items per page container */
+.items-per-page-container {
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.items-per-page-container label {
+  color: var(--color-gray-light);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.items-per-page-container .select-input {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  min-width: 100px;
+  width: auto;
+  flex: none;
+}
+
 /* ===== MODALS ===== */
 .modal {
   display: none;

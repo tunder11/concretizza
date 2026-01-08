@@ -146,12 +146,6 @@
                     <select id="filterAtribuicao" class="select-input">
                         <option value="">Todos os Corretores</option>
                     </select>
-                    <select id="itemsPerPage" class="select-input" style="display: none;">
-                        <option value="10">10 por página</option>
-                        <option value="25">25 por página</option>
-                        <option value="50">50 por página</option>
-                        <option value="100">100 por página</option>
-                    </select>
                 </div>
 
                 <!-- Added bulk delete button that appears when clients are selected -->
@@ -197,6 +191,16 @@
                     <button class="btn-secondary" id="nextPage" disabled>
                         Próxima <i class="fas fa-chevron-right"></i>
                     </button>
+                </div>
+
+                <div class="items-per-page-container" style="display: none;">
+                    <label for="itemsPerPageBottom">Itens por página:</label>
+                    <select id="itemsPerPageBottom" class="select-input">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -480,3 +484,4 @@
     <script src="/scripts/clientes.js?v=2"></script>
 </body>
 </html>
+    <script src="/scripts/utils/data.js?v=2"></script>
