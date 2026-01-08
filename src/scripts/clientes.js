@@ -43,7 +43,7 @@ function carregarDadosUsuario() {
 let currentPage = 1
 let clientes = []
 let clientesFiltrados = []
-const itensPorPagina = 10
+let itensPorPagina = 10
 let clienteEmEdicao = null
 let clienteParaVer = null
 let clientesSelecionados = []
@@ -139,6 +139,19 @@ function aplicarPermissoes() {
   const tagsGroup = document.getElementById("tagsGroup")
   if (tagsGroup) {
     tagsGroup.style.display = isAdminOrHeadAdmin() ? "block" : "none"
+  }
+
+  const itemsPerPageSelect = document.getElementById("itemsPerPage")
+  if (itemsPerPageSelect) {
+    itemsPerPageSelect.style.display = isAdminOrHeadAdmin() ? "block" : "none"
+    if (isAdminOrHeadAdmin()) {
+      // Load saved preference
+      const savedItemsPerPage = localStorage.getItem("clientesItemsPerPage")
+      if (savedItemsPerPage && [10, 25, 50, 100].includes(parseInt(savedItemsPerPage))) {
+        itensPorPagina = parseInt(savedItemsPerPage)
+        itemsPerPageSelect.value = savedItemsPerPage
+      }
+    }
   }
 
   if (!podeVer && !isCorretor) {
@@ -376,6 +389,16 @@ function configurarEventos() {
   }
   if (filterAtribuicao) {
     filterAtribuicao.addEventListener("change", filtrarClientes)
+  }
+
+  const itemsPerPage = document.getElementById("itemsPerPage")
+  if (itemsPerPage) {
+    itemsPerPage.addEventListener("change", (e) => {
+      itensPorPagina = parseInt(e.target.value)
+      currentPage = 1
+      localStorage.setItem("clientesItemsPerPage", itensPorPagina.toString())
+      atualizarTabela()
+    })
   }
 
   const prevPage = document.getElementById("prevPage")
