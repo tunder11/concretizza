@@ -1,5 +1,6 @@
 let bugReports = []
 let currentBugReport = null
+let bugReportToDelete = null
 
 document.addEventListener("DOMContentLoaded", () => {
   verificarAutenticacao()
@@ -163,6 +164,26 @@ function configurarEventos() {
   const btnConfirmarLogout = document.getElementById("btnConfirmarLogout")
   if (btnConfirmarLogout) {
     btnConfirmarLogout.addEventListener("click", fazerLogout)
+  }
+
+  // Delete confirmation modal
+  const closeConfirmacaoDelete = document.getElementById("closeConfirmacaoDelete")
+  if (closeConfirmacaoDelete) {
+    closeConfirmacaoDelete.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoDelete").style.display = "none"
+    })
+  }
+
+  const btnCancelarDelete = document.getElementById("btnCancelarDelete")
+  if (btnCancelarDelete) {
+    btnCancelarDelete.addEventListener("click", () => {
+      document.getElementById("modalConfirmacaoDelete").style.display = "none"
+    })
+  }
+
+  const btnConfirmarDelete = document.getElementById("btnConfirmarDelete")
+  if (btnConfirmarDelete) {
+    btnConfirmarDelete.addEventListener("click", confirmarDeleteBugReport)
   }
 
   // Modal close
@@ -501,10 +522,16 @@ function editarBugReport(id) {
   abrirModalBugReport(id)
 }
 
-async function deletarBugReport(id) {
-  if (!confirm("Tem certeza que deseja deletar este bug report? Esta ação não pode ser desfeita.")) {
-    return
-  }
+function deletarBugReport(id) {
+  bugReportToDelete = id
+  document.getElementById("modalConfirmacaoDelete").style.display = "flex"
+}
+
+async function confirmarDeleteBugReport() {
+  if (!bugReportToDelete) return
+
+  const id = bugReportToDelete
+  bugReportToDelete = null
 
   try {
     await fazerRequisicao(`/api/bug-reports/${id}`, {
@@ -512,10 +539,17 @@ async function deletarBugReport(id) {
     })
 
     mostrarNotificacao("Bug report deletado com sucesso!", "sucesso")
+    document.getElementById("modalConfirmacaoDelete").style.display = "none"
     await carregarBugReports()
+
+    // If we're on the detail page of the deleted bug report, go back to list
+    if (currentBugReport && currentBugReport.id === id) {
+      voltarParaLista()
+    }
   } catch (error) {
     console.error("Erro ao deletar bug report:", error)
     mostrarNotificacao("Erro ao deletar bug report", "erro")
+    document.getElementById("modalConfirmacaoDelete").style.display = "none"
   }
 }
 

@@ -262,6 +262,30 @@
         </div>
     </div>
 
+    <div id="modalConfirmacaoDelete" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Exclusão</h2>
+                <button class="modal-close" id="closeConfirmacaoDelete">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-trash"></i>
+                    </div>
+                    <p>Tem certeza que deseja excluir este bug report?</p>
+                    <p class="confirmation-warning">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarDelete">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarDelete">
+                        <i class="fas fa-trash"></i> Excluir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toastNotification" class="toast"></div>
 
     <script src="/scripts/utils/api.js?v=2"></script>

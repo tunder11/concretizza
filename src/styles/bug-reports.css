@@ -397,15 +397,18 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-gold-primary) 0%, var(--color-gold-dark) 100%);
+  background: linear-gradient(135deg, var(--color-gold-primary), var(--color-gold-dark));
   color: var(--color-background);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-disabled {
