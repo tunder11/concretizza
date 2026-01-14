@@ -134,3 +134,39 @@ function formatarCargo(cargo) {
 function formatarPermissao(permissao) {
   return formatarCargo(permissao)
 }
+
+// Função para configurar a seção de administração em qualquer página
+function configurarAdminSection() {
+  const usuarioLogado = obterUsuarioLogado()
+  const adminSection = document.getElementById("adminSection")
+
+  if (adminSection && usuarioLogado) {
+    const cargos = getCargosAsArray(usuarioLogado.cargo).map(c => c.toLowerCase())
+    if (cargos.includes("admin") || cargos.includes("head-admin")) {
+      adminSection.style.display = "block"
+    } else {
+      adminSection.style.display = "none"
+    }
+  }
+}
+
+// Função para configurar dados do usuário (nome, cargo) em qualquer página
+function configurarDadosUsuario() {
+  const usuarioLogado = obterUsuarioLogado()
+
+  if (usuarioLogado) {
+    const userNameElement = document.getElementById("userName")
+    const userRoleElement = document.getElementById("userRole")
+
+    if (userNameElement) {
+      userNameElement.textContent = usuarioLogado.nome || usuarioLogado.username
+    }
+
+    if (userRoleElement) {
+      userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
+    }
+  }
+
+  // Configurar admin section
+  configurarAdminSection()
+}

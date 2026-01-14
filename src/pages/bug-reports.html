@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concretizza - Bug Reports</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/bug-reports.css">
+</head>
+<body class="app-page">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <i class="fas fa-building"></i>
+                <span>Concretizza</span>
+            </div>
+            <button class="sidebar-toggle-mobile" id="sidebarToggle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item" data-page="dashboard">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/clientes" class="nav-item" data-page="clientes">
+                <i class="fas fa-users"></i>
+                <span>Clientes</span>
+            </a>
+            <a href="/agendamentos" class="nav-item" data-page="agendamentos">
+                <i class="fas fa-calendar"></i>
+                <span>Agendamentos</span>
+            </a>
+
+            <div class="nav-divider"></div>
+
+            <div id="adminSection" class="admin-section" style="display: none;">
+                <p class="nav-label">Administração</p>
+                <a href="/usuarios" class="nav-item" data-page="usuarios">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Gerenciar Usuários</span>
+                </a>
+                <a href="/corretores" class="nav-item" data-page="corretores">
+                    <i class="fas fa-handshake"></i>
+                    <span>Corretores & Clientes</span>
+                </a>
+                <a href="/logs" class="nav-item" data-page="logs">
+                    <i class="fas fa-history"></i>
+                    <span>Logs</span>
+                </a>
+                <a href="/bug-reports" class="nav-item active" data-page="bug-reports">
+                    <i class="fas fa-bug"></i>
+                    <span>Bug Reports</span>
+                </a>
+            </div>
+
+            <div class="nav-divider"></div>
+
+            <a href="/" class="nav-item" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button class="sidebar-toggle" id="sidebarToggleMobile">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="pageTitle">Bug Reports</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="userName">Usuário</span>
+                    <span id="userRole" class="user-role">Head Admin</span>
+                </div>
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='50%25' fill='%23FFD700'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23000' font-size='20' font-family='Arial'%3EU%3C/text%3E%3C/svg%3E" alt="Avatar" class="avatar">
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <!-- Bug Reports -->
+            <div id="bugReportsPage" class="page active">
+                <div class="page-header">
+                    <div class="filter-bar">
+                        <input type="text" id="searchBugReports" placeholder="Buscar por título..." class="search-input">
+                        <select id="filterStatus" class="select-input">
+                            <option value="">Todos os status</option>
+                            <option value="aberto">Aberto</option>
+                            <option value="em-andamento">Em Andamento</option>
+                            <option value="resolvido">Resolvido</option>
+                            <option value="fechado">Fechado</option>
+                        </select>
+                        <select id="filterPrioridade" class="select-input">
+                            <option value="">Todas as prioridades</option>
+                            <option value="baixa">Baixa</option>
+                            <option value="media">Média</option>
+                            <option value="alta">Alta</option>
+                            <option value="critica">Crítica</option>
+                        </select>
+                        <button class="btn-primary" id="btnNovoBugReport">
+                            <i class="fas fa-plus"></i> Novo Bug Report
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Prioridade</th>
+                                <th>Status</th>
+                                <th>Categoria</th>
+                                <th>Criado por</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bugReportsTable">
+                            <tr>
+                                <td colspan="7" class="text-center">Nenhum bug report encontrado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bug Report Detail -->
+            <div id="bugReportDetailPage" class="page">
+                <div class="bug-report-header">
+                    <button class="btn-secondary back-btn" id="btnVoltar">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                <div class="bug-report-info">
+                        <h2 id="bugReportTitleDetail"></h2>
+                        <div class="bug-report-meta">
+                            <span id="bugReportPrioridadeDetail" class="prioridade-badge"></span>
+                            <span id="bugReportStatusDetail" class="status-badge"></span>
+                            <span id="bugReportCategoriaDetail" class="categoria-badge"></span>
+                            <span id="bugReportCriadoPor"></span>
+                            <span id="bugReportData"></span>
+                        </div>
+                    </div>
+                    <div class="bug-report-actions">
+                        <button class="btn-secondary" id="btnEditarBugReport">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn-danger" id="btnDeletarBugReport">
+                            <i class="fas fa-trash"></i> Deletar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bug-report-content">
+                    <div class="bug-report-description">
+                        <h3>Descrição</h3>
+                        <div id="bugReportDescricaoDetail" class="description-content"></div>
+                    </div>
+
+                    <div class="bug-report-chat">
+                        <h3>Discussão</h3>
+                        <div id="chatMessages" class="chat-messages">
+                            <!-- Messages will be loaded here -->
+                        </div>
+                        <div class="chat-input">
+                            <form id="formNovaMensagem">
+                                <div class="input-group">
+                                    <textarea id="novaMensagem" placeholder="Digite sua mensagem..." rows="3" required></textarea>
+                                    <button type="submit" class="btn-primary">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="modalBugReport" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalBugReportTitle">Novo Bug Report</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="formBugReport" class="form">
+                <div class="form-group">
+                    <label for="bugReportTitulo">Título *</label>
+                    <input type="text" id="bugReportTitulo" name="titulo">
+                </div>
+                <div class="form-group">
+                    <label for="bugReportDescricao">Descrição *</label>
+                    <textarea id="bugReportDescricao" name="descricao" rows="6" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="bugReportPrioridade">Prioridade</label>
+                        <select id="bugReportPrioridade" name="prioridade">
+                            <option value="baixa">Baixa</option>
+                            <option value="media" selected>Média</option>
+                            <option value="alta">Alta</option>
+                            <option value="critica">Crítica</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bugReportStatus">Status</label>
+                        <select id="bugReportStatus" name="status">
+                            <option value="aberto" selected>Aberto</option>
+                            <option value="em-andamento">Em Andamento</option>
+                            <option value="resolvido">Resolvido</option>
+                            <option value="fechado">Fechado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bugReportCategoria">Categoria</label>
+                        <input type="text" id="bugReportCategoria" name="categoria" placeholder="Ex: Interface, Funcionalidade, etc." value="geral">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary modal-close-btn">Cancelar</button>
+                    <button type="button" class="btn-primary" id="btnSalvarBugReport">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalConfirmacaoLogout" class="modal">
+        <div class="modal-content modal-confirmation">
+            <div class="modal-header">
+                <h2>Confirmar Saída</h2>
+                <button class="modal-close" id="closeConfirmacaoLogout">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="confirmation-content">
+                    <div class="confirmation-icon">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </div>
+                    <p>Tem certeza que deseja sair da sua conta?</p>
+                    <p class="confirmation-warning">Você será desconectado do sistema.</p>
+                </div>
+                <div class="confirmation-actions">
+                    <button class="btn-secondary" id="btnCancelarLogout">Cancelar</button>
+                    <button class="btn-danger" id="btnConfirmarLogout">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="toast"></div>
+
+    <script src="/scripts/utils/api.js?v=2"></script>
+    <script src="/scripts/utils/permissions.js?v=2"></script>
+    <script src="/scripts/utils/data.js?v=2"></script>
+    <script src="/scripts/bug-reports.js?v=2"></script>
+</body>
+</html>

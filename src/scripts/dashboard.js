@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   verificarAutenticacao()
-  carregarDadosUsuario()
+  configurarDadosUsuario()
   carregarDados()
   configurarEventos()
 })
@@ -11,32 +11,6 @@ function verificarAutenticacao() {
   if (!token || !usuarioLogado) {
     window.location.href = "/"
     return
-  }
-}
-
-function carregarDadosUsuario() {
-  const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
-  if (usuarioLogado) {
-    const userNameElement = document.getElementById("userName")
-    const userRoleElement = document.getElementById("userRole")
-
-    if (userNameElement) {
-      userNameElement.textContent = usuarioLogado.nome || usuarioLogado.username
-    }
-
-    if (userRoleElement) {
-      userRoleElement.textContent = formatarCargo(usuarioLogado.cargo)
-    }
-
-    const adminSection = document.getElementById("adminSection")
-    if (adminSection) {
-      const cargos = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
-      if (cargos.includes("admin") || cargos.includes("head-admin")) {
-        adminSection.style.display = "block"
-      } else {
-        adminSection.style.display = "none"
-      }
-    }
   }
 }
 
@@ -147,6 +121,10 @@ function configurarEventos() {
         window.location.href = "/usuarios"
       } else if (page === "logs") {
         window.location.href = "/logs"
+      } else if (page === "corretores") {
+        window.location.href = "/corretores"
+      } else if (page === "bug-reports") {
+        window.location.href = "/bug-reports"
       }
     })
   })

@@ -184,6 +184,32 @@ async function initializeTables() {
     console.log(`[${getDataSaoPaulo()}] ✓ Tabela agendamentos criada`)
 
     await dbQuery(`
+      CREATE TABLE IF NOT EXISTS bug_reports (
+        id SERIAL PRIMARY KEY,
+        titulo TEXT NOT NULL,
+        descricao TEXT NOT NULL,
+        prioridade TEXT DEFAULT 'media',
+        status TEXT DEFAULT 'aberto',
+        categoria TEXT DEFAULT 'geral',
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela bug_reports criada`)
+
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS bug_report_messages (
+        id SERIAL PRIMARY KEY,
+        bug_report_id INTEGER NOT NULL REFERENCES bug_reports(id) ON DELETE CASCADE,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+        mensagem TEXT NOT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log(`[${getDataSaoPaulo()}] ✓ Tabela bug_report_messages criada`)
+
+    await dbQuery(`
       CREATE TABLE IF NOT EXISTS logs_auditoria (
         id SERIAL PRIMARY KEY,
         usuario_id INTEGER REFERENCES usuarios(id),
@@ -1235,6 +1261,226 @@ app.delete(
   }
 )
 
+// ===== ROTAS DE BUG REPORTS (APENAS PARA HEAD ADMINS) =====
+app.get("/api/bug-reports", autenticar, autorizar("head-admin"), async (req, res) => {
+  try {
+    const result = await dbQuery(`
+      SELECT br.*, u.nome as usuario_nome, u.username as usuario_username
+      FROM bug_reports br
+      LEFT JOIN usuarios u ON br.usuario_id = u.id
+      ORDER BY br.atualizado_em DESC
+    `)
+
+    const bugReports = result.rows.map(report => ({
+      id: report.id,
+      titulo: report.titulo,
+      descricao: report.descricao,
+      prioridade: report.prioridade,
+      status: report.status,
+      categoria: report.categoria,
+      usuario_id: report.usuario_id,
+      usuario_nome: report.usuario_nome || report.usuario_username,
+      criado_em: report.criado_em,
+      atualizado_em: report.atualizado_em
+    }))
+
+    res.json(bugReports)
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [BUG-REPORTS] Erro ao buscar bug reports:`, err)
+    res.status(500).json({ error: "Erro ao buscar bug reports: " + err.message })
+  }
+})
+
+app.post(
+  "/api/bug-reports",
+  autenticar,
+  autorizar("head-admin"),
+  [
+    body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
+    body("descricao").trim().notEmpty().withMessage("Descrição é obrigatória"),
+    body("prioridade").optional().isIn(["baixa", "media", "alta", "critica"]).withMessage("Prioridade inválida"),
+    body("categoria").optional().trim()
+  ],
+  validarRequisicao,
+  async (req, res) => {
+    const { titulo, descricao, prioridade, categoria } = req.body
+    const usuarioId = req.usuario.id
+
+    try {
+      const result = await dbQuery(
+        "INSERT INTO bug_reports (titulo, descricao, prioridade, categoria, usuario_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        [titulo, descricao, prioridade || "media", categoria || "geral", usuarioId]
+      )
+
+      const bugReportId = result.rows[0]?.id
+      await registrarLog(req.usuario.id, "CRIAR", "Bug Reports", `Bug report criado: ${titulo}`, titulo, req)
+
+      res.status(201).json({
+        id: bugReportId,
+        message: "Bug report criado com sucesso"
+      })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [BUG-REPORTS] Erro ao criar bug report:`, err)
+      res.status(500).json({ error: "Erro ao criar bug report: " + err.message })
+    }
+  }
+)
+
+app.get("/api/bug-reports/:id", autenticar, autorizar("head-admin"), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const bugReportResult = await dbQuery(`
+      SELECT br.*, u.nome as usuario_nome, u.username as usuario_username
+      FROM bug_reports br
+      LEFT JOIN usuarios u ON br.usuario_id = u.id
+      WHERE br.id = $1
+    `, [id])
+
+    if (bugReportResult.rows.length === 0) {
+      return res.status(404).json({ error: "Bug report não encontrado" })
+    }
+
+    const messagesResult = await dbQuery(`
+      SELECT bm.*, u.nome as usuario_nome, u.username as usuario_username
+      FROM bug_report_messages bm
+      LEFT JOIN usuarios u ON bm.usuario_id = u.id
+      WHERE bm.bug_report_id = $1
+      ORDER BY bm.criado_em ASC
+    `, [id])
+
+    const bugReport = {
+      id: bugReportResult.rows[0].id,
+      titulo: bugReportResult.rows[0].titulo,
+      descricao: bugReportResult.rows[0].descricao,
+      prioridade: bugReportResult.rows[0].prioridade,
+      status: bugReportResult.rows[0].status,
+      categoria: bugReportResult.rows[0].categoria,
+      usuario_id: bugReportResult.rows[0].usuario_id,
+      usuario_nome: bugReportResult.rows[0].usuario_nome || bugReportResult.rows[0].usuario_username,
+      criado_em: bugReportResult.rows[0].criado_em,
+      atualizado_em: bugReportResult.rows[0].atualizado_em,
+      messages: messagesResult.rows.map(msg => ({
+        id: msg.id,
+        mensagem: msg.mensagem,
+        usuario_id: msg.usuario_id,
+        usuario_nome: msg.usuario_nome || msg.usuario_username,
+        criado_em: msg.criado_em
+      }))
+    }
+
+    res.json(bugReport)
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [BUG-REPORTS] Erro ao buscar bug report:`, err)
+    res.status(500).json({ error: "Erro ao buscar bug report: " + err.message })
+  }
+})
+
+app.put(
+  "/api/bug-reports/:id",
+  autenticar,
+  autorizar("head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const { titulo, descricao, prioridade, status, categoria } = req.body
+
+    try {
+      const result = await dbQuery(
+        "UPDATE bug_reports SET titulo = $1, descricao = $2, prioridade = $3, status = $4, categoria = $5, atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
+        [titulo, descricao, prioridade, status, categoria, id]
+      )
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Bug report não encontrado" })
+      }
+
+      await registrarLog(req.usuario.id, "EDITAR", "Bug Reports", `Bug report atualizado: ${titulo || id}`, titulo || id, req)
+      res.json({ success: true, message: "Bug report atualizado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [BUG-REPORTS] Erro ao atualizar bug report:`, err)
+      res.status(500).json({ error: "Erro ao atualizar bug report: " + err.message })
+    }
+  }
+)
+
+app.post(
+  "/api/bug-reports/:id/messages",
+  autenticar,
+  autorizar("head-admin"),
+  [
+    param("id").isInt().withMessage("ID inválido"),
+    body("mensagem").trim().notEmpty().withMessage("Mensagem é obrigatória")
+  ],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+    const { mensagem } = req.body
+    const usuarioId = req.usuario.id
+
+    try {
+      // Verificar se o bug report existe
+      const bugReport = await dbQuery("SELECT id, titulo FROM bug_reports WHERE id = $1", [id])
+      if (bugReport.rows.length === 0) {
+        return res.status(404).json({ error: "Bug report não encontrado" })
+      }
+
+      const result = await dbQuery(
+        "INSERT INTO bug_report_messages (bug_report_id, usuario_id, mensagem) VALUES ($1, $2, $3) RETURNING id",
+        [id, usuarioId, mensagem]
+      )
+
+      // Atualizar a data do bug report
+      await dbQuery("UPDATE bug_reports SET atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id])
+
+      const messageId = result.rows[0]?.id
+      await registrarLog(req.usuario.id, "COMENTAR", "Bug Reports", `Comentário adicionado ao bug report: ${bugReport.rows[0].titulo}`, bugReport.rows[0].titulo, req)
+
+      res.status(201).json({
+        id: messageId,
+        message: "Mensagem enviada com sucesso"
+      })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [BUG-REPORTS] Erro ao enviar mensagem:`, err)
+      res.status(500).json({ error: "Erro ao enviar mensagem: " + err.message })
+    }
+  }
+)
+
+app.delete(
+  "/api/bug-reports/:id",
+  autenticar,
+  autorizar("head-admin"),
+  [param("id").isInt().withMessage("ID inválido")],
+  validarRequisicao,
+  async (req, res) => {
+    const { id } = req.params
+
+    try {
+      const bugReport = await dbQuery("SELECT titulo FROM bug_reports WHERE id = $1", [id])
+      if (bugReport.rows.length === 0) {
+        return res.status(404).json({ error: "Bug report não encontrado" })
+      }
+
+      const titulo = bugReport.rows[0].titulo
+
+      // As mensagens serão deletadas automaticamente devido ao CASCADE
+      const result = await dbQuery("DELETE FROM bug_reports WHERE id = $1", [id])
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Bug report não encontrado" })
+      }
+
+      await registrarLog(req.usuario.id, "DELETAR", "Bug Reports", `Bug report deletado: ${titulo}`, titulo, req)
+      res.json({ success: true, message: "Bug report deletado com sucesso" })
+    } catch (err) {
+      console.error(`[${getDataSaoPaulo()}] [BUG-REPORTS] Erro ao deletar bug report:`, err)
+      res.status(500).json({ error: "Erro ao deletar bug report: " + err.message })
+    }
+  }
+)
+
 // ===== SERVIR ARQUIVO RAIZ =====
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "index.html"))
@@ -1262,6 +1508,10 @@ app.get("/corretores", (req, res) => {
 
 app.get("/logs", (req, res) => {
   res.sendFile(path.join(__dirname, "src", "pages", "logs.html"))
+})
+
+app.get("/bug-reports", (req, res) => {
+  res.sendFile(path.join(__dirname, "src", "pages", "bug-reports.html"))
 })
 
 app.get("/pages/:page", (req, res) => {

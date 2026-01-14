@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   verificarAutenticacao()
-  carregarDadosUsuario()
+  configurarDadosUsuario()
   carregarCorretoresEClientes()
   configurarEventos()
   aplicarPermissoes()
