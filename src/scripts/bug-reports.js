@@ -66,7 +66,7 @@ function atualizarTabela() {
       const dataFormatada = formatarData(report.criado_em)
 
       return `
-        <tr>
+        <tr onclick="visualizarBugReport(${report.id})" style="cursor: pointer;">
           <td>
             <div class="titulo-cell">
               <strong>${report.titulo}</strong>
@@ -80,13 +80,10 @@ function atualizarTabela() {
           <td>${dataFormatada}</td>
           <td>
             <div class="action-buttons">
-              <button class="btn-action btn-view" onclick="visualizarBugReport(${report.id})">
-                <i class="fas fa-eye"></i> Ver
-              </button>
-              <button class="btn-action btn-edit" onclick="editarBugReport(${report.id})">
+              <button class="btn-action btn-edit" onclick="event.stopPropagation(); editarBugReport(${report.id})">
                 <i class="fas fa-edit"></i> Editar
               </button>
-              <button class="btn-action btn-delete" onclick="deletarBugReport(${report.id})">
+              <button class="btn-action btn-delete" onclick="event.stopPropagation(); deletarBugReport(${report.id})">
                 <i class="fas fa-trash"></i> Deletar
               </button>
             </div>
@@ -294,7 +291,7 @@ function filtrarBugReports() {
       const dataFormatada = formatarData(report.criado_em)
 
       return `
-        <tr>
+        <tr onclick="visualizarBugReport(${report.id})" style="cursor: pointer;">
           <td>
             <div class="titulo-cell">
               <strong>${report.titulo}</strong>
@@ -308,13 +305,10 @@ function filtrarBugReports() {
           <td>${dataFormatada}</td>
           <td>
             <div class="action-buttons">
-              <button class="btn-action btn-view" onclick="visualizarBugReport(${report.id})">
-                <i class="fas fa-eye"></i> Ver
-              </button>
-              <button class="btn-action btn-edit" onclick="editarBugReport(${report.id})">
+              <button class="btn-action btn-edit" onclick="event.stopPropagation(); editarBugReport(${report.id})">
                 <i class="fas fa-edit"></i> Editar
               </button>
-              <button class="btn-action btn-delete" onclick="deletarBugReport(${report.id})">
+              <button class="btn-action btn-delete" onclick="event.stopPropagation(); deletarBugReport(${report.id})">
                 <i class="fas fa-trash"></i> Deletar
               </button>
             </div>
