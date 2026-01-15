@@ -14,7 +14,7 @@ function verificarAutenticacao() {
 }
 
 function carregarDadosUsuario() {
-  const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
+  usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
   if (usuarioLogado) {
     const userNameElement = document.getElementById("userName")
     const userRoleElement = document.getElementById("userRole")
@@ -30,6 +30,7 @@ function carregarDadosUsuario() {
     const adminSection = document.getElementById("adminSection")
     const cargos = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
     isAdminUser = cargos.includes("admin") || cargos.includes("head-admin")
+    isCorretorUser = cargos.includes("corretor")
 
     if (adminSection) {
       if (isAdminUser) {
@@ -71,6 +72,8 @@ let chartInstance = null
 let agendamentoEmEdicao = null
 let agendamentoParaExcluir = null
 let isAdminUser = false
+let isCorretorUser = false
+let usuarioLogado = null
 
 async function inicializarPagina() {
   configurarEventos()
@@ -214,7 +217,7 @@ function renderizarTabela() {
   }
 
   tbody.innerHTML = filtrados.map(a => {
-    const corretorNome = a.corretor_nome || ''
+    const corretorNome = a.corretor_nome || (corretores.find(c => c.id === a.corretor_id)?.nome) || ''
     const corretorCell = isAdminUser ? `<td>${corretorNome}</td>` : ''
 
     return `
@@ -488,7 +491,13 @@ function configurarEventos() {
 
 async function salvarAgendamento() {
   const clienteId = document.getElementById("agendamentoCliente").value
-  const corretorId = isAdminUser ? document.getElementById("agendamentoCorretor").value : null
+  let corretorId = null
+
+  if (isAdminUser) {
+    corretorId = document.getElementById("agendamentoCorretor").value
+  } else if (isCorretorUser) {
+    corretorId = usuarioLogado.id
+  }
 
   if (!clienteId) {
     mostrarToast("Selecione um cliente", "erro")
