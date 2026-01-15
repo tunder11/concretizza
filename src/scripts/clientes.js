@@ -561,14 +561,37 @@ async function salvarCliente() {
       await atualizarCliente(clienteEmEdicao, cliente)
       registrarLog("EDITAR", "CLIENTES", `Cliente "${nome}" atualizado`, nome)
       mostrarNotificacao("Cliente atualizado com sucesso!", "sucesso")
+
+      // Atualizar cliente no array local para preservar filtros
+      const clienteIndex = clientes.findIndex(c => c.id === clienteEmEdicao)
+      if (clienteIndex !== -1) {
+        // Manter campos que não são editáveis por corretores ou que vêm da API
+        const clienteExistente = clientes[clienteIndex]
+        clientes[clienteIndex] = {
+          ...clienteExistente,
+          ...cliente,
+          // Garantir que campos do sistema sejam preservados
+          usuario_id: clienteExistente.usuario_id,
+          criado_em: clienteExistente.criado_em,
+          atualizado_em: new Date().toISOString(),
+          cadastrado_por: clienteExistente.cadastrado_por,
+          atribuido_a: clienteExistente.atribuido_a,
+          atribuido_a_nome: clienteExistente.atribuido_a_nome
+        }
+
+        // Reaplicar filtros atuais sem recarregar dados
+        filtrarClientes()
+      }
     } else {
       await criarCliente(cliente)
       registrarLog("CRIAR", "CLIENTES", `Novo cliente "${nome}" criado`, nome)
       mostrarNotificacao("Cliente criado com sucesso!", "sucesso")
+
+      // Para criação de cliente, ainda precisamos recarregar para obter o ID correto
+      await carregarClientes()
     }
 
     document.getElementById("modalCliente").style.display = "none"
-    await carregarClientes()
   } catch (error) {
     mostrarNotificacao("Erro ao salvar cliente: " + error.message, "erro")
   } finally {
