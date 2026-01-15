@@ -1014,11 +1014,11 @@ app.get(
         `SELECT u.id, u.nome, u.email, u.telefone, u.departamento, u.status, COUNT(c.id) as total_clientes
          FROM usuarios u
          LEFT JOIN clientes c ON u.id = c.usuario_id
-         WHERE u.permissao LIKE '%corretor%'
+         WHERE u.permissao LIKE '%corretor%' AND u.status = 'ativo'
          GROUP BY u.id, u.nome, u.email, u.telefone, u.departamento, u.status
          ORDER BY u.nome`
       )
-      
+
       res.json(corretores.rows || [])
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [CORRETORES] Erro ao buscar corretores:`, err)

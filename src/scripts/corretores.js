@@ -273,29 +273,31 @@ function abrirModalAtribuir(corretorId, corretorNome) {
 
 function abrirModalAtribuirRapido(clienteId, clienteNome) {
   corretorAtualSelecionado = { id: null, nome: null, clienteId: clienteId }
-  
+
   document.getElementById("groupCorretorNome").style.display = "none"
   document.getElementById("groupCorretorSelect").style.display = "flex"
   document.getElementById("groupClienteNome").style.display = "flex"
   document.getElementById("groupClienteSelect").style.display = "none"
-  
+
   // Ajustar validação dos campos
   document.getElementById("corretorSelect").required = true
   document.getElementById("clienteAtribuir").required = false
-  
+
   document.getElementById("clienteAtribuirNome").value = clienteNome
-  
+
   const selectCorretor = document.getElementById("corretorSelect")
   selectCorretor.innerHTML = `<option value="">-- Selecione um corretor --</option>`
   selectCorretor.disabled = false
-  
-  corretores.forEach(corretor => {
+
+  // Only show active brokers (status = 'ativo')
+  const corretoresAtivos = corretores.filter(corretor => corretor.status === 'ativo')
+  corretoresAtivos.forEach(corretor => {
     const option = document.createElement("option")
     option.value = corretor.id
     option.textContent = corretor.nome
     selectCorretor.appendChild(option)
   })
-  
+
   document.getElementById("modalAtribuir").classList.add("show")
 }
 
@@ -842,7 +844,9 @@ function abrirModalAtribuirBulk() {
   selectCorretor.innerHTML = `<option value="">-- Selecione um corretor --</option>`
   selectCorretor.disabled = false
 
-  corretores.forEach(corretor => {
+  // Only show active brokers (status = 'ativo')
+  const corretoresAtivos = corretores.filter(corretor => corretor.status === 'ativo')
+  corretoresAtivos.forEach(corretor => {
     const option = document.createElement("option")
     option.value = corretor.id
     option.textContent = corretor.nome
@@ -909,4 +913,3 @@ async function removerClientesSelecionados() {
   closeBtn.addEventListener("click", cancelarRemocao)
 }
   btnConfirmar.addEventListener("click", confirmarRemocao)
-
