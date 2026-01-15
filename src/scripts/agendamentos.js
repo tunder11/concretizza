@@ -40,12 +40,12 @@ function carregarDadosUsuario() {
       }
     }
 
-    // Hide corretor column and form field for non-admin users
+    // Hide corretor column for non-admin and non-corretor users
     const corretorHeader = document.querySelector("#agendamentosTable thead tr th:nth-child(2)")
     const corretorFormGroup = document.querySelector("#agendamentoCorretor").closest(".form-group")
 
     if (corretorHeader) {
-      corretorHeader.style.display = isAdminUser ? "" : "none"
+      corretorHeader.style.display = (isAdminUser || isCorretorUser) ? "" : "none"
     }
 
     if (corretorFormGroup) {
@@ -209,7 +209,8 @@ function renderizarTabela() {
     return dataA - dataB
   })
 
-  const colspan = isAdminUser ? "8" : "7"
+  const showCorretorColumn = isAdminUser || isCorretorUser
+  const colspan = showCorretorColumn ? "8" : "7"
 
   if (filtrados.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum agendamento encontrado</td></tr>`
@@ -217,8 +218,8 @@ function renderizarTabela() {
   }
 
   tbody.innerHTML = filtrados.map(a => {
-    const corretorNome = a.corretor_nome || (corretores.find(c => c.id === a.corretor_id)?.nome) || ''
-    const corretorCell = isAdminUser ? `<td>${corretorNome}</td>` : ''
+    const corretorNome = (corretores.find(c => c.id === a.corretor_id)?.nome) || (a.corretor_id === usuarioLogado?.id ? usuarioLogado.nome : '') || ''
+    const corretorCell = showCorretorColumn ? `<td>${corretorNome}</td>` : ''
 
     return `
     <tr>
