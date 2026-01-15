@@ -28,13 +28,27 @@ function carregarDadosUsuario() {
     }
 
     const adminSection = document.getElementById("adminSection")
+    const cargos = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
+    isAdminUser = cargos.includes("admin") || cargos.includes("head-admin")
+
     if (adminSection) {
-      const cargos = usuarioLogado.cargo?.toLowerCase().split(',').map(c => c.trim())
-      if (cargos.includes("admin") || cargos.includes("head-admin")) {
+      if (isAdminUser) {
         adminSection.style.display = "block"
       } else {
         adminSection.style.display = "none"
       }
+    }
+
+    // Hide corretor column and form field for non-admin users
+    const corretorHeader = document.querySelector("#agendamentosTable thead tr th:nth-child(2)")
+    const corretorFormGroup = document.querySelector("#agendamentoCorretor").closest(".form-group")
+
+    if (corretorHeader) {
+      corretorHeader.style.display = isAdminUser ? "" : "none"
+    }
+
+    if (corretorFormGroup) {
+      corretorFormGroup.style.display = isAdminUser ? "" : "none"
     }
   }
 }
@@ -52,13 +66,16 @@ function formatarCargo(cargo) {
 
 let agendamentos = []
 let clientes = []
+let corretores = []
 let chartInstance = null
 let agendamentoEmEdicao = null
 let agendamentoParaExcluir = null
+let isAdminUser = false
 
 async function inicializarPagina() {
   configurarEventos()
   await carregarClientes()
+  await carregarCorretores()
   await carregarAgendamentos()
 }
 
@@ -70,15 +87,13 @@ async function carregarClientes() {
         console.warn("Função obterClientes não encontrada")
         clientes = []
     }
-    
+
     const selectCliente = document.getElementById("agendamentoCliente")
     if (selectCliente) {
         selectCliente.innerHTML = '<option value="">Selecione um cliente</option>'
-        
-        // Filtrar apenas clientes em atendimento
-        const clientesFiltrados = clientes.filter(c => c.status === 'em-atendimento')
-        
-        clientesFiltrados.forEach(cliente => {
+
+        // Mostrar todos os clientes
+        clientes.forEach(cliente => {
             const option = document.createElement("option")
             option.value = cliente.id
             option.textContent = cliente.nome
@@ -91,6 +106,39 @@ async function carregarClientes() {
   }
 }
 
+async function carregarCorretores() {
+  try {
+    if (typeof fazerRequisicao === 'function') {
+        corretores = await fazerRequisicao("/api/corretores", { method: "GET" })
+    } else {
+        console.warn("Função fazerRequisicao não encontrada")
+        corretores = []
+    }
+
+    const selectCorretor = document.getElementById("agendamentoCorretor")
+    if (selectCorretor) {
+        selectCorretor.innerHTML = '<option value="">Selecione um corretor (opcional)</option>'
+
+        // Filtrar apenas usuários com permissão de corretor e status ativo
+        const corretoresFiltrados = corretores.filter(c =>
+            c.status === 'ativo' &&
+            c.permissao &&
+            c.permissao.toLowerCase().includes('corretor')
+        )
+
+        corretoresFiltrados.forEach(corretor => {
+            const option = document.createElement("option")
+            option.value = corretor.id
+            option.textContent = corretor.nome
+            selectCorretor.appendChild(option)
+        })
+    }
+  } catch (error) {
+    console.error("Erro ao carregar corretores:", error)
+    mostrarToast("Erro ao carregar corretores", "erro")
+  }
+}
+
 async function carregarAgendamentos() {
   try {
     if (typeof obterAgendamentos === 'function') {
@@ -99,10 +147,9 @@ async function carregarAgendamentos() {
         console.warn("Função obterAgendamentos não encontrada")
         agendamentos = []
     }
-    
+
     atualizarEstatisticas()
     renderizarTabela()
-    renderizarGrafico()
   } catch (error) {
     console.error("Erro ao carregar agendamentos:", error)
     mostrarToast("Erro ao carregar agendamentos", "erro")
@@ -138,35 +185,42 @@ function renderizarTabela() {
   const filtroData = document.getElementById("filterData").value
   const filtroStatus = document.getElementById("filterStatus").value
   const filtroTipo = document.getElementById("filterTipo").value
-  
+
   let filtrados = agendamentos.filter(a => {
     const clienteNome = a.cliente_nome || a.cliente || ""
-    const matchBusca = clienteNome.toLowerCase().includes(termoBusca) || 
+    const matchBusca = clienteNome.toLowerCase().includes(termoBusca) ||
                        (a.observacoes && a.observacoes.toLowerCase().includes(termoBusca)) ||
                        (a.local && a.local.toLowerCase().includes(termoBusca))
-    
+
     const matchData = !filtroData || a.data === filtroData
     const matchStatus = !filtroStatus || a.status === filtroStatus
     const matchTipo = !filtroTipo || a.tipo === filtroTipo
-    
+
     return matchBusca && matchData && matchStatus && matchTipo
   })
-  
+
   // Ordenar por data e hora
   filtrados.sort((a, b) => {
     const dataA = new Date(a.data + 'T' + a.hora)
     const dataB = new Date(b.data + 'T' + b.hora)
     return dataA - dataB
   })
-  
+
+  const colspan = isAdminUser ? "8" : "7"
+
   if (filtrados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum agendamento encontrado</td></tr>'
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum agendamento encontrado</td></tr>`
     return
   }
-  
-  tbody.innerHTML = filtrados.map(a => `
+
+  tbody.innerHTML = filtrados.map(a => {
+    const corretorNome = a.corretor_nome || a.usuario_nome || '-'
+    const corretorCell = isAdminUser ? `<td>${corretorNome}</td>` : ''
+
+    return `
     <tr>
       <td>${a.cliente_nome || a.cliente || '-'}</td>
+      ${corretorCell}
       <td>${formatarData(a.data)}</td>
       <td>${a.hora}</td>
       <td>${formatarTipo(a.tipo)}</td>
@@ -181,7 +235,7 @@ function renderizarTabela() {
         </button>
       </td>
     </tr>
-  `).join('')
+  `}).join('')
 }
 
 function renderizarGrafico() {
@@ -429,23 +483,21 @@ function configurarEventos() {
     }
   })
   
-  // Chart Period
-  const chartPeriod = document.getElementById("chartPeriod")
-  if (chartPeriod) {
-    chartPeriod.addEventListener("change", renderizarGrafico)
-  }
+  // Chart Period - removed since chart was removed
 }
 
 async function salvarAgendamento() {
   const clienteId = document.getElementById("agendamentoCliente").value
-  
+  const corretorId = isAdminUser ? document.getElementById("agendamentoCorretor").value : null
+
   if (!clienteId) {
     mostrarToast("Selecione um cliente", "erro")
     return
   }
-  
+
   const dadosAgendamento = {
     cliente_id: clienteId,
+    corretor_id: corretorId || null,
     data: document.getElementById("agendamentoData").value,
     hora: document.getElementById("agendamentoHora").value,
     tipo: document.getElementById("agendamentoTipo").value,
@@ -453,7 +505,7 @@ async function salvarAgendamento() {
     local: document.getElementById("agendamentoLocal").value,
     observacoes: document.getElementById("agendamentoObservacoes").value
   }
-  
+
   try {
     if (agendamentoEmEdicao) {
         await atualizarAgendamento(agendamentoEmEdicao, dadosAgendamento)
@@ -462,7 +514,7 @@ async function salvarAgendamento() {
         await criarAgendamento(dadosAgendamento)
         mostrarToast("Agendamento criado com sucesso!", "sucesso")
     }
-    
+
     document.getElementById("modalAgendamento").classList.remove("show")
     await carregarAgendamentos()
   } catch (error) {
@@ -475,14 +527,15 @@ async function salvarAgendamento() {
 window.editarAgendamento = function(id) {
   const agendamento = agendamentos.find(a => a.id === id)
   if (!agendamento) return
-  
+
   agendamentoEmEdicao = id
-  
+
   const selectCliente = document.getElementById("agendamentoCliente")
-  
+  const selectCorretor = document.getElementById("agendamentoCorretor")
+
   // Verificar se o cliente está na lista (pode ter sido filtrado se não estiver em atendimento)
   const clienteNaLista = Array.from(selectCliente.options).some(opt => opt.value == agendamento.cliente_id)
-  
+
   if (!clienteNaLista) {
       const cliente = clientes.find(c => c.id == agendamento.cliente_id)
       if (cliente) {
@@ -492,15 +545,36 @@ window.editarAgendamento = function(id) {
           selectCliente.appendChild(option)
       }
   }
-  
+
+  // Verificar se o corretor está na lista
+  if (agendamento.corretor_id) {
+    const corretorNaLista = Array.from(selectCorretor.options).some(opt => opt.value == agendamento.corretor_id)
+
+    if (!corretorNaLista) {
+        const corretor = corretores.find(c => c.id == agendamento.corretor_id)
+        if (corretor) {
+            const option = document.createElement("option")
+            option.value = corretor.id
+            option.textContent = corretor.nome
+            selectCorretor.appendChild(option)
+        }
+    }
+  }
+
   selectCliente.value = agendamento.cliente_id
+
+  // Only set corretor value if user is admin
+  if (isAdminUser) {
+    selectCorretor.value = agendamento.corretor_id || ""
+  }
+
   document.getElementById("agendamentoData").value = agendamento.data
   document.getElementById("agendamentoHora").value = agendamento.hora
   document.getElementById("agendamentoTipo").value = agendamento.tipo
   document.getElementById("agendamentoStatus").value = agendamento.status
   document.getElementById("agendamentoLocal").value = agendamento.local || ""
   document.getElementById("agendamentoObservacoes").value = agendamento.observacoes || ""
-  
+
   document.getElementById("modalTitle").textContent = "Editar Agendamento"
   document.getElementById("modalAgendamento").classList.add("show")
 }

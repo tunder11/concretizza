@@ -266,6 +266,14 @@ async function initializeTables() {
         console.log(`[${getDataSaoPaulo()}] Nota: Coluna tags já existe ou erro ao adicionar:`, e.message)
       }
     }
+
+    try {
+      await dbQuery("ALTER TABLE agendamentos ADD COLUMN corretor_id INTEGER REFERENCES usuarios(id)")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna corretor_id já existe ou erro ao adicionar:`, e.message)
+      }
+    }
   } catch (error) {
     console.error(`[${getDataSaoPaulo()}] Erro ao criar tabelas:`, error.message)
   }
@@ -1003,19 +1011,18 @@ app.get("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, r
   }
 })
 
-// ===== ROTAS DE CORRETORES (APENAS PARA ADMINS) =====
+// ===== ROTAS DE CORRETORES =====
 app.get(
   "/api/corretores",
   autenticar,
-  autorizar("head-admin", "admin"),
   async (req, res) => {
     try {
       const corretores = await dbQuery(
-        `SELECT u.id, u.nome, u.email, u.telefone, u.departamento, u.status, COUNT(c.id) as total_clientes
+        `SELECT u.id, u.nome, u.email, u.telefone, u.departamento, u.status, u.permissao, COUNT(c.id) as total_clientes
          FROM usuarios u
          LEFT JOIN clientes c ON u.id = c.usuario_id
          WHERE u.permissao LIKE '%corretor%' AND u.status = 'ativo'
-         GROUP BY u.id, u.nome, u.email, u.telefone, u.departamento, u.status
+         GROUP BY u.id, u.nome, u.email, u.telefone, u.departamento, u.status, u.permissao
          ORDER BY u.nome`
       )
 
@@ -1169,22 +1176,23 @@ app.get("/api/agendamentos", autenticar, async (req, res) => {
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
     const usuarioId = req.usuario.id
-    
+
     let query = `
-      SELECT a.*, c.nome as cliente_nome, c.telefone as cliente_telefone, u.nome as usuario_nome 
+      SELECT a.*, c.nome as cliente_nome, c.telefone as cliente_telefone, u.nome as usuario_nome, cr.nome as corretor_nome
       FROM agendamentos a
       LEFT JOIN clientes c ON a.cliente_id = c.id
       LEFT JOIN usuarios u ON a.usuario_id = u.id
+      LEFT JOIN usuarios cr ON a.corretor_id = cr.id
     `
     let params = []
-    
+
     if (isCorretor && !isAdmin) {
       query += " WHERE a.usuario_id = $1"
       params = [usuarioId]
     }
-    
+
     query += " ORDER BY a.data ASC, a.hora ASC"
-    
+
     const result = await dbQuery(query, params)
     res.json(result.rows || [])
   } catch (err) {
@@ -1204,7 +1212,7 @@ app.post(
   ],
   validarRequisicao,
   async (req, res) => {
-    const { cliente_id, data, hora, tipo, status, observacoes } = req.body
+    const { cliente_id, corretor_id, data, hora, tipo, status, observacoes } = req.body
     const usuarioId = req.usuario.id
 
     try {
@@ -1216,8 +1224,8 @@ app.post(
       const nomeCliente = cliente.rows[0].nome
 
       const result = await dbQuery(
-        "INSERT INTO agendamentos (cliente_id, usuario_id, data, hora, tipo, status, observacoes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-        [cliente_id, usuarioId, data, hora, tipo, status || 'agendado', observacoes || null]
+        "INSERT INTO agendamentos (cliente_id, corretor_id, usuario_id, data, hora, tipo, status, observacoes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        [cliente_id, corretor_id || null, usuarioId, data, hora, tipo, status || 'agendado', observacoes || null]
       )
 
       const agendamentoId = result.rows[0]?.id
@@ -1238,7 +1246,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { data, hora, tipo, status, observacoes } = req.body
+    const { corretor_id, data, hora, tipo, status, observacoes } = req.body
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
@@ -1259,8 +1267,8 @@ app.put(
       }
 
       await dbQuery(
-        "UPDATE agendamentos SET data = COALESCE($1, data), hora = COALESCE($2, hora), tipo = COALESCE($3, tipo), status = COALESCE($4, status), observacoes = COALESCE($5, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
-        [data, hora, tipo, status, observacoes, id]
+        "UPDATE agendamentos SET corretor_id = COALESCE($1, corretor_id), data = COALESCE($2, data), hora = COALESCE($3, hora), tipo = COALESCE($4, tipo), status = COALESCE($5, status), observacoes = COALESCE($6, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
+        [corretor_id, data, hora, tipo, status, observacoes, id]
       )
 
       const nomeCliente = agendamento.rows[0].cliente_nome || "Cliente não encontrado"

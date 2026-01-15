@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles/agendamentos.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="app-page">
     <aside class="sidebar">
@@ -127,20 +126,6 @@
                 </div>
             </div>
 
-            <div class="chart-section">
-                <div class="chart-header">
-                    <h2>Visão Geral de Agendamentos</h2>
-                    <select id="chartPeriod" class="select-input" style="max-width: 200px;">
-                        <option value="week">Última Semana</option>
-                        <option value="month">Último Mês</option>
-                        <option value="year">Último Ano</option>
-                    </select>
-                </div>
-                <div class="chart-container">
-                    <canvas id="agendamentosChart"></canvas>
-                </div>
-            </div>
-
             <div class="content-card">
                 <div class="card-header-section">
                     <h2>Gerenciar Agendamentos</h2>
@@ -171,6 +156,7 @@
                         <thead>
                             <tr>
                                 <th>Cliente</th>
+                                <th>Corretor</th>
                                 <th>Data</th>
                                 <th>Hora</th>
                                 <th>Tipo</th>
@@ -181,7 +167,7 @@
                         </thead>
                         <tbody id="agendamentosTable">
                             <tr>
-                                <td colspan="7" class="text-center">Nenhum agendamento encontrado</td>
+                                <td colspan="8" class="text-center">Nenhum agendamento encontrado</td>
                             </tr>
                         </tbody>
                     </table>
@@ -212,6 +198,12 @@
                         <label for="agendamentoCliente">Cliente *</label>
                         <select id="agendamentoCliente" required>
                             <option value="">Selecione um cliente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="agendamentoCorretor">Corretor</label>
+                        <select id="agendamentoCorretor">
+                            <option value="">Selecione um corretor (opcional)</option>
                         </select>
                     </div>
                     <div class="form-group">
