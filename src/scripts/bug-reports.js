@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function verificarAutenticacao() {
   const token = localStorage.getItem("token")
   const usuario = JSON.parse(localStorage.getItem("usuarioLogado"))
-  if (!token || !usuario || !isHeadAdmin()) {
+  if (!token || !usuario || !isAdminOrHeadAdmin()) {
     window.location.href = "/"
   }
 }
@@ -698,9 +698,11 @@ function formatarCargo(cargo) {
   return cargos.map(c => map[c.toLowerCase()] || c).join(", ")
 }
 
-function isHeadAdmin() {
+function isAdminOrHeadAdmin() {
   const usuario = JSON.parse(localStorage.getItem("usuarioLogado"))
-  return usuario?.cargo?.toLowerCase().split(',').map(c => c.trim()).includes("head-admin")
+  if (!usuario?.cargo) return false
+  const cargos = usuario.cargo.toLowerCase().split(',').map(c => c.trim())
+  return cargos.includes("admin") || cargos.includes("head-admin")
 }
 
 // Event listeners for detail page buttons

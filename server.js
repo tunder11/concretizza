@@ -533,13 +533,17 @@ app.put(
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
-    
+
     try {
+      // Buscar o nome atual do cliente para o log
+      const clienteAtual = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [id])
+      if (clienteAtual.rows.length === 0) {
+        return res.status(404).json({ error: "Cliente não encontrado" })
+      }
+      const nomeCliente = clienteAtual.rows[0].nome
+
       if (isCorretor && !isAdmin) {
         const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
-        if (cliente.rows.length === 0) {
-          return res.status(404).json({ error: "Cliente não encontrado" })
-        }
         if (cliente.rows[0].usuario_id !== req.usuario.id && cliente.rows[0].atribuido_a !== req.usuario.id) {
           console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${cliente.rows[0].usuario_id}, atribuido_a: ${cliente.rows[0].atribuido_a}, req.usuario.id: ${req.usuario.id}`)
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
@@ -550,16 +554,17 @@ app.put(
           [interesse || null, status || null, observacoes || null, id]
         )
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
-        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${id}`, id, req)
+        await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
         return res.json({ success: true, message: "Cliente atualizado com sucesso" })
       }
-      
+
       const result = await dbQuery(
         "UPDATE clientes SET nome = $1, telefone = $2, email = $3, interesse = $4, valor = $5, status = $6, observacoes = $7, tags = $8, atualizado_em = CURRENT_TIMESTAMP WHERE id = $9",
         [nome, telefone, email, interesse, valor, status, observacoes, tags, id]
       )
       if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
-      await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nome || id}`, nome || id, req)
+      const nomeFinal = nome || nomeCliente
+      await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado: ${nomeFinal}`, nomeFinal, req)
       res.json({ success: true, message: "Cliente atualizado com sucesso" })
     } catch (err) {
       console.error("[CLIENTES PUT] Erro ao atualizar cliente:", err)
@@ -743,22 +748,22 @@ app.put(
 
       const cargosAlvo = usuarioAlvo.permissao.toLowerCase().split(',').map(c => c.trim())
       const cargosNovos = permissao.toLowerCase().split(',').map(c => c.trim())
-      
+
       const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
       const isLogadoAdmin = cargosUsuarioLogado.includes("admin")
-      
+
       const isAlvoAdmin = cargosAlvo.includes("admin")
       const isAlvoHeadAdmin = cargosAlvo.includes("head-admin")
-      
+
       const isNovoAdmin = cargosNovos.includes("admin")
       const isNovoHeadAdmin = cargosNovos.includes("head-admin")
-      
+
       const isEditandoAsiMesmo = usuarioIdSendoEditado === req.usuario.id
 
       if (!isEditandoAsiMesmo && !isLogadoHeadAdmin && isLogadoAdmin && (isAlvoAdmin || isAlvoHeadAdmin)) {
         return res.status(403).json({ error: "Admin não pode editar usuários com cargo igual ou superior" })
       }
-      
+
       if (!isLogadoHeadAdmin && isLogadoAdmin && (isNovoAdmin || isNovoHeadAdmin)) {
         return res.status(403).json({ error: "Admin não pode criar ou modificar para cargos admin ou superior" })
       }
@@ -787,10 +792,12 @@ app.put(
       }
 
       if (result.rowCount === 0) return res.status(404).json({ error: "Usuário não encontrado" })
-      await registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nome || id}`, nome || id, req)
-      
+
+      const nomeFinal = nome || usuarioAlvo.nome_atual
+      await registrarLog(req.usuario.id, "EDITAR", "Usuários", `Usuário atualizado: ${nomeFinal}`, nomeFinal, req)
+
       let responseData = { success: true, message: "Usuário atualizado com sucesso" }
-      
+
       if (usuarioIdSendoEditado === req.usuario.id) {
         const novoToken = jwt.sign(
           { id: req.usuario.id, username: req.usuario.username, cargo: permissao.toLowerCase() },
@@ -799,7 +806,7 @@ app.put(
         )
         responseData.token = novoToken
       }
-      
+
       res.json(responseData)
     } catch (err) {
       console.error("[UPDATE USER] Erro ao atualizar usuário:", err)
@@ -1047,9 +1054,15 @@ app.post(
         [parseInt(corretor_id), parseInt(cliente_id)]
       )
       
+      // Get client and corretor names for proper logging
+      const clienteInfo = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [cliente_id])
+      const corretorInfo = await dbQuery("SELECT nome FROM usuarios WHERE id = $1", [corretor_id])
+      const nomeCliente = clienteInfo.rows[0]?.nome || cliente_id
+      const nomeCorretor = corretorInfo.rows[0]?.nome || corretor_id
+
       await dbQuery(
-        `INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao) VALUES ($1, $2, $3, $4)`,
-        [req.usuario.id, "ATRIBUIR_CLIENTE", "CORRETORES", `Cliente ${cliente_id} atribuído ao corretor ${corretor_id}`]
+        `INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, ip_address) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [req.usuario.id, "ATRIBUIR_CLIENTE", "CORRETORES", `Cliente "${nomeCliente}" atribuído ao corretor "${nomeCorretor}"`, nomeCliente, req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0]?.trim()]
       )
       
       console.log(`[${getDataSaoPaulo()}] [CORRETORES] Cliente ${cliente_id} atribuído ao corretor ${corretor_id} por ${req.usuario.username}`)
@@ -1093,7 +1106,7 @@ app.delete(
 )
 
 app.get(
-  "/api/clientes-disponiveis",
+  "/api/clientes-disponiveis",                                                              
   autenticar,
   autorizar("head-admin", "admin"),
   async (req, res) => {
@@ -1170,22 +1183,23 @@ app.post(
   async (req, res) => {
     const { cliente_id, data, hora, tipo, status, observacoes } = req.body
     const usuarioId = req.usuario.id
-    
+
     try {
-      // Verificar se o cliente existe
-      const cliente = await dbQuery("SELECT id FROM clientes WHERE id = $1", [cliente_id])
+      // Verificar se o cliente existe e obter nome
+      const cliente = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [cliente_id])
       if (cliente.rows.length === 0) {
         return res.status(404).json({ error: "Cliente não encontrado" })
       }
+      const nomeCliente = cliente.rows[0].nome
 
       const result = await dbQuery(
         "INSERT INTO agendamentos (cliente_id, usuario_id, data, hora, tipo, status, observacoes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
         [cliente_id, usuarioId, data, hora, tipo, status || 'agendado', observacoes || null]
       )
-      
+
       const agendamentoId = result.rows[0]?.id
-      await registrarLog(req.usuario.id, "CRIAR", "Agendamentos", `Agendamento criado para cliente ${cliente_id}`, agendamentoId, req)
-      
+      await registrarLog(req.usuario.id, "CRIAR", "Agendamentos", `Agendamento criado para cliente "${nomeCliente}"`, nomeCliente, req)
+
       res.status(201).json({ id: agendamentoId, message: "Agendamento criado com sucesso" })
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao criar agendamento:`, err)
@@ -1205,13 +1219,18 @@ app.put(
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
-    
+
     try {
-      const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
+      const agendamento = await dbQuery(`
+        SELECT a.usuario_id, c.nome as cliente_nome
+        FROM agendamentos a
+        LEFT JOIN clientes c ON a.cliente_id = c.id
+        WHERE a.id = $1
+      `, [id])
       if (agendamento.rows.length === 0) {
         return res.status(404).json({ error: "Agendamento não encontrado" })
       }
-      
+
       if (isCorretor && !isAdmin && agendamento.rows[0].usuario_id !== req.usuario.id) {
         return res.status(403).json({ error: "Permissão negada" })
       }
@@ -1220,8 +1239,9 @@ app.put(
         "UPDATE agendamentos SET data = COALESCE($1, data), hora = COALESCE($2, hora), tipo = COALESCE($3, tipo), status = COALESCE($4, status), observacoes = COALESCE($5, observacoes), atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
         [data, hora, tipo, status, observacoes, id]
       )
-      
-      await registrarLog(req.usuario.id, "EDITAR", "Agendamentos", `Agendamento ${id} atualizado`, id, req)
+
+      const nomeCliente = agendamento.rows[0].cliente_nome || "Cliente não encontrado"
+      await registrarLog(req.usuario.id, "EDITAR", "Agendamentos", `Agendamento para "${nomeCliente}" atualizado`, nomeCliente, req)
       res.json({ success: true, message: "Agendamento atualizado com sucesso" })
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao atualizar agendamento:`, err)
@@ -1240,20 +1260,26 @@ app.delete(
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
-    
+
     try {
-      const agendamento = await dbQuery("SELECT usuario_id FROM agendamentos WHERE id = $1", [id])
+      const agendamento = await dbQuery(`
+        SELECT a.usuario_id, c.nome as cliente_nome
+        FROM agendamentos a
+        LEFT JOIN clientes c ON a.cliente_id = c.id
+        WHERE a.id = $1
+      `, [id])
       if (agendamento.rows.length === 0) {
         return res.status(404).json({ error: "Agendamento não encontrado" })
       }
-      
+
       if (isCorretor && !isAdmin && agendamento.rows[0].usuario_id !== req.usuario.id) {
         return res.status(403).json({ error: "Permissão negada" })
       }
 
       await dbQuery("DELETE FROM agendamentos WHERE id = $1", [id])
-      
-      await registrarLog(req.usuario.id, "DELETAR", "Agendamentos", `Agendamento ${id} deletado`, id, req)
+
+      const nomeCliente = agendamento.rows[0].cliente_nome || "Cliente não encontrado"
+      await registrarLog(req.usuario.id, "DELETAR", "Agendamentos", `Agendamento para "${nomeCliente}" deletado`, nomeCliente, req)
       res.json({ success: true, message: "Agendamento deletado com sucesso" })
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [AGENDAMENTOS] Erro ao deletar agendamento:`, err)
@@ -1262,8 +1288,8 @@ app.delete(
   }
 )
 
-// ===== ROTAS DE BUG REPORTS (APENAS PARA HEAD ADMINS) =====
-app.get("/api/bug-reports", autenticar, autorizar("head-admin"), async (req, res) => {
+//// ===== ROTAS DE BUG REPORTS (PARA ADMINS E HEAD ADMINS) =====
+app.get("/api/bug-reports", autenticar, autorizar("admin", "head-admin"), async (req, res) => {
   try {
     const result = await dbQuery(`
       SELECT br.*, u.nome as usuario_nome, u.username as usuario_username
@@ -1295,7 +1321,7 @@ app.get("/api/bug-reports", autenticar, autorizar("head-admin"), async (req, res
 app.post(
   "/api/bug-reports",
   autenticar,
-  autorizar("head-admin"),
+  autorizar("admin", "head-admin"),
   [
     body("titulo").trim().notEmpty().withMessage("Título é obrigatório"),
     body("descricao").trim().notEmpty().withMessage("Descrição é obrigatória"),
@@ -1327,7 +1353,7 @@ app.post(
   }
 )
 
-app.get("/api/bug-reports/:id", autenticar, autorizar("head-admin"), async (req, res) => {
+app.get("/api/bug-reports/:id", autenticar, autorizar("admin", "head-admin"), async (req, res) => {
   try {
     const { id } = req.params
 
@@ -1380,7 +1406,7 @@ app.get("/api/bug-reports/:id", autenticar, autorizar("head-admin"), async (req,
 app.put(
   "/api/bug-reports/:id",
   autenticar,
-  autorizar("head-admin"),
+  autorizar("admin", "head-admin"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
   async (req, res) => {
@@ -1409,7 +1435,7 @@ app.put(
 app.post(
   "/api/bug-reports/:id/messages",
   autenticar,
-  autorizar("head-admin"),
+  autorizar("admin", "head-admin"),
   [
     param("id").isInt().withMessage("ID inválido"),
     body("mensagem").trim().notEmpty().withMessage("Mensagem é obrigatória")
@@ -1452,7 +1478,7 @@ app.post(
 app.delete(
   "/api/bug-reports/:id",
   autenticar,
-  autorizar("head-admin"),
+  autorizar("admin", "head-admin"),
   [param("id").isInt().withMessage("ID inválido")],
   validarRequisicao,
   async (req, res) => {
