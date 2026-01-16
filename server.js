@@ -129,7 +129,7 @@ function dbQuery(sql, params = []) {
 }
 
 function getDataSaoPaulo() {
-  return new Date().toLocaleString('pt-BR', { 
+  return new Date().toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric',
     month: '2-digit',
@@ -138,6 +138,21 @@ function getDataSaoPaulo() {
     minute: '2-digit',
     second: '2-digit'
   })
+}
+
+function getDataSaoPauloDate(dateString) {
+  const date = new Date(dateString)
+  const formatter = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  const parts = formatter.formatToParts(date)
+  const day = parts.find(p => p.type === 'day')?.value
+  const month = parts.find(p => p.type === 'month')?.value
+  const year = parts.find(p => p.type === 'year')?.value
+  return `${year}-${month}-${day}`
 }
 
 // ===== CRIAR TABELAS =====
@@ -352,6 +367,30 @@ async function initializeTables() {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
         console.log(`[${getDataSaoPaulo()}] Nota: Coluna corretor_id já existe ou erro ao adicionar:`, e.message)
       }
+    }
+
+    // Migração: Popular data_atribuicao para clientes existentes que têm atribuido_a mas não têm data_atribuicao
+    try {
+      console.log(`[${getDataSaoPaulo()}] Verificando migração de data_atribuicao...`)
+      const clientesParaMigrar = await dbQuery("SELECT id, nome, criado_em FROM clientes WHERE atribuido_a IS NOT NULL AND (data_atribuicao IS NULL OR data_atribuicao = '')")
+
+      if (clientesParaMigrar.rows && clientesParaMigrar.rows.length > 0) {
+        console.log(`[${getDataSaoPaulo()}] Migrando ${clientesParaMigrar.rows.length} clientes com data_atribuicao ausente...`)
+
+        for (const cliente of clientesParaMigrar.rows) {
+          // Usar a data de criação como data de atribuição aproximada, convertida para timezone de São Paulo
+          const dataAtribuicao = cliente.criado_em ? getDataSaoPauloDate(cliente.criado_em) : getDataSaoPauloDate(new Date().toISOString())
+
+          await dbQuery("UPDATE clientes SET data_atribuicao = $1 WHERE id = $2", [dataAtribuicao, cliente.id])
+          console.log(`[${getDataSaoPaulo()}] ✓ Cliente ${cliente.nome} (ID: ${cliente.id}) - data_atribuicao definida como: ${dataAtribuicao}`)
+        }
+
+        console.log(`[${getDataSaoPaulo()}] ✓ Migração de data_atribuicao concluída com sucesso!`)
+      } else {
+        console.log(`[${getDataSaoPaulo()}] ✓ Nenhum cliente precisa de migração de data_atribuicao.`)
+      }
+    } catch (migrationError) {
+      console.log(`[${getDataSaoPaulo()}] Nota: Erro na migração de data_atribuicao (pode ser normal se já executada):`, migrationError.message)
     }
   } catch (error) {
     console.error(`[${getDataSaoPaulo()}] Erro ao criar tabelas:`, error.message)
