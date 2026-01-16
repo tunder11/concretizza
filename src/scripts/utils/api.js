@@ -189,6 +189,10 @@ async function deletarCaptacao(id) {
   return fazerRequisicao(`/api/captacoes/${id}`, { method: "DELETE" })
 }
 
+async function obterHistoricoAtribuicoes(clienteId) {
+  return fazerRequisicao(`/api/clientes/${clienteId}/historico-atribuicoes`, { method: "GET" })
+}
+
 function fazerLogout() {
   localStorage.removeItem("token")
   localStorage.removeItem("usuarioLogado")

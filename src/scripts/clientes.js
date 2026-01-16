@@ -52,7 +52,10 @@ let corretores = []
 async function carregarClientes() {
   try {
     mostrarCarregando(true)
-    clientes = await obterClientes()
+    const resultado = await obterClientes()
+
+    // Garantir que clientes seja sempre um array
+    clientes = Array.isArray(resultado) ? resultado : []
     await carregarCorretores()
     populateSelectAtribuicao()
     clientesFiltrados = [...clientes]
@@ -62,6 +65,9 @@ async function carregarClientes() {
   } catch (error) {
     console.error("Erro ao carregar clientes:", error)
     mostrarNotificacao("Erro ao carregar clientes: " + error.message, "erro")
+    // Em caso de erro, garantir que clientes seja um array vazio
+    clientes = []
+    clientesFiltrados = []
   } finally {
     mostrarCarregando(false)
   }
@@ -213,6 +219,11 @@ function atualizarTabela() {
   const filterAtribuicaoValue = document.getElementById("filterAtribuicao").value
   const showAtribuido = isAdminOrHead || filterAtribuicaoValue !== ""
   
+  const headerData = document.getElementById("headerData")
+  if (headerData) {
+    headerData.textContent = "Data Atribuição"
+  }
+
   const headerCadastradoPor = document.getElementById("headerCadastradoPor")
   if (headerCadastradoPor) {
     headerCadastradoPor.style.display = isAdminOrHead ? "" : "none"
@@ -257,7 +268,7 @@ function atualizarTabela() {
         <td>${formatarInteresse(cliente.interesse)}</td>
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
         <td>${cliente.valor || "-"}</td>
-        <td>${formatarData(cliente.data)}</td>
+        <td>${formatarData(cliente.data_atribuicao)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${showAtribuido ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
@@ -459,6 +470,20 @@ function configurarEventos() {
   if (btnFecharDetalhes) {
     btnFecharDetalhes.addEventListener("click", () => {
       document.getElementById("modalDetalhesCliente").style.display = "none"
+    })
+  }
+
+  const closeHistoricoModal = document.getElementById("closeHistoricoModal")
+  if (closeHistoricoModal) {
+    closeHistoricoModal.addEventListener("click", () => {
+      document.getElementById("modalHistoricoAtribuicoes").style.display = "none"
+    })
+  }
+
+  const btnFecharHistorico = document.getElementById("btnFecharHistorico")
+  if (btnFecharHistorico) {
+    btnFecharHistorico.addEventListener("click", () => {
+      document.getElementById("modalHistoricoAtribuicoes").style.display = "none"
     })
   }
 
@@ -707,7 +732,17 @@ function abrirDetalhesCliente(id) {
   document.getElementById("detailEmail").textContent = cliente.email || "-"
   document.getElementById("detailInteresse").textContent = formatarInteresse(cliente.interesse)
   document.getElementById("detailValor").textContent = cliente.valor ? `R$ ${cliente.valor}` : "-"
-  document.getElementById("detailData").textContent = formatarData(cliente.data)
+  // Para todos os usuários, mostrar "Data de Atribuição"
+  const usuarioLogado = obterUsuarioLogado()
+  const isCorretor = usuarioLogado && getCargosAsArray(usuarioLogado.cargo).some(c => c.toLowerCase().includes('corretor'))
+
+  const detailDataContainer = document.getElementById("detailData").parentElement
+  const detailDataLabel = detailDataContainer.querySelector('.detail-label')
+
+  // Mudar o label para "Data de Atribuição" para todos
+  detailDataLabel.textContent = "Data de Atribuição"
+  // Mostrar data de atribuição se disponível, senão vazia
+  document.getElementById("detailData").textContent = formatarData(cliente.data_atribuicao)
   document.getElementById("detailStatus").textContent = formatarStatus(cliente.status)
   document.getElementById("detailObservacoes").textContent = cliente.observacoes || "-"
   
@@ -728,10 +763,7 @@ function abrirDetalhesCliente(id) {
     }
   }
   
-  const usuarioLogado = obterUsuarioLogado()
   const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")
-  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
-  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
   
   const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
   if (btnEditarDetalhes) {
@@ -753,10 +785,25 @@ function abrirDetalhesCliente(id) {
   if (detailAtribuidoAContainer) {
     if (isAdminOrHeadAdmin()) {
       detailAtribuidoAContainer.style.display = ""
-      document.getElementById("detailAtribuidoA").textContent = cliente.atribuido_a_nome || "-"
+      const detailAtribuidoA = document.getElementById("detailAtribuidoA")
+      detailAtribuidoA.textContent = cliente.atribuido_a_nome || "-"
+
+      // Remove clickable styles from "atribuído a"
+      detailAtribuidoA.style.cursor = "default"
+      detailAtribuidoA.style.textDecoration = "none"
+      detailAtribuidoA.style.color = ""
+      detailAtribuidoA.onclick = null
     } else {
       detailAtribuidoAContainer.style.display = "none"
     }
+  }
+
+  // Make the entire date detail item clickable for assignment history
+  const detailDataElement = document.getElementById("detailData")
+  const detailItem = detailDataElement?.closest('.detail-item')
+  if (detailItem && isAdminOrHeadAdmin()) {
+    detailItem.style.cursor = "pointer"
+    detailItem.onclick = () => abrirHistoricoAtribuicoes(cliente.id)
   }
 
   document.getElementById("modalDetalhesCliente").style.display = "flex"
@@ -895,4 +942,93 @@ function formatarInteresse(interesse) {
     vender: "Vender"
   }
   return map[interesse] || interesse
+}
+
+async function abrirHistoricoAtribuicoes(clienteId) {
+  try {
+    mostrarCarregando(true)
+    const historico = await obterHistoricoAtribuicoes(clienteId)
+    console.log("Histórico recebido:", historico)
+
+    document.getElementById("historicoClienteNome").textContent = historico.cliente_nome
+
+    const container = document.getElementById("historicoAtribuicoesContainer")
+
+    // Data de cadastro primeiro
+    let html = ""
+    if (historico.data_cadastro) {
+      html += `
+        <div class="historico-item data-cadastro">
+          <div class="historico-icon">
+            <i class="fas fa-calendar-plus"></i>
+          </div>
+          <div class="historico-content">
+            <div class="historico-title">Cliente Cadastrado</div>
+            <div class="historico-description">
+              Cliente foi cadastrado no sistema
+            </div>
+            <div class="historico-date">${historico.data_cadastro}</div>
+          </div>
+        </div>
+      `
+    }
+
+    // Primeira atribuição
+    if (historico.primeira_atribuicao) {
+      html += `
+        <div class="historico-item primeira-atribuicao">
+          <div class="historico-icon">
+            <i class="fas fa-user-plus"></i>
+          </div>
+          <div class="historico-content">
+            <div class="historico-title">Primeira Atribuição</div>
+            <div class="historico-description">
+              Atribuído a <strong>${historico.primeira_atribuicao.corretor_nome}</strong>
+            </div>
+            <div class="historico-date">${formatarDataHora(historico.primeira_atribuicao.data)}</div>
+          </div>
+        </div>
+      `
+    }
+
+    // Outras atribuições
+    historico.atribuicoes.forEach(atribuicao => {
+      const isAtribuicao = atribuicao.acao === "ATRIBUIR_CLIENTE"
+      const iconClass = isAtribuicao ? "fas fa-arrow-right" : "fas fa-times"
+      const title = isAtribuicao ? "Atribuído" : "Removido"
+      const bgClass = isAtribuicao ? "atribuicao" : "remocao"
+
+      html += `
+        <div class="historico-item ${bgClass}">
+          <div class="historico-icon">
+            <i class="${iconClass}"></i>
+          </div>
+          <div class="historico-content">
+            <div class="historico-title">${title}</div>
+            <div class="historico-description">${atribuicao.descricao}</div>
+            <div class="historico-user">Por: ${atribuicao.usuario_logado}</div>
+            <div class="historico-date">${formatarDataHora(atribuicao.data)}</div>
+          </div>
+        </div>
+      `
+    })
+
+    if (!historico.data_cadastro && !historico.primeira_atribuicao && historico.atribuicoes.length === 0) {
+      html = `<div class="historico-empty">Nenhuma atribuição encontrada para este cliente.</div>`
+    }
+
+    container.innerHTML = html
+
+    document.getElementById("modalHistoricoAtribuicoes").style.display = "flex"
+  } catch (error) {
+    console.error("Erro ao carregar histórico de atribuições:", error)
+    mostrarNotificacao("Erro ao carregar histórico: " + error.message, "erro")
+  } finally {
+    mostrarCarregando(false)
+  }
+}
+
+function formatarDataHora(dataString) {
+  // O servidor já retorna as datas formatadas no timezone correto
+  return dataString || "-"
 }

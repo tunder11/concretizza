@@ -177,7 +177,7 @@
                                 <th>Interesse</th>
                                 <th>Status</th>
                                 <th>Valor</th>
-                                <th>Data</th>
+                                <th id="headerData">Data</th>
                                 <th id="headerCadastradoPor" style="display: none;">Cad. por</th>
                                 <th id="headerAtribuidoA" style="display: none;">Atribuído a</th>
                                 <th id="headerAcoes">Ações</th>
@@ -478,6 +478,27 @@
                     <button class="btn-danger" id="btnConfirmarLogout">
                         <i class="fas fa-sign-out-alt"></i> Sair
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de histórico de atribuições -->
+    <div id="modalHistoricoAtribuicoes" class="modal">
+        <div class="modal-content modal-history">
+            <div class="modal-header">
+                <h2>Histórico de Atribuições</h2>
+                <button class="modal-close" id="closeHistoricoModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="historico-header">
+                    <h3 id="historicoClienteNome">-</h3>
+                </div>
+                <div id="historicoAtribuicoesContainer" class="historico-container">
+                    <!-- Itens do histórico serão inseridos aqui -->
+                </div>
+                <div class="historico-actions">
+                    <button class="btn-secondary" id="btnFecharHistorico">Fechar</button>
                 </div>
             </div>
         </div>

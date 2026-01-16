@@ -339,6 +339,14 @@ async function initializeTables() {
     }
 
     try {
+      await dbQuery("ALTER TABLE clientes ADD COLUMN data_atribuicao TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna data_atribuicao já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
       await dbQuery("ALTER TABLE agendamentos ADD COLUMN corretor_id INTEGER REFERENCES usuarios(id)")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
@@ -552,29 +560,30 @@ app.post(
   }
 )
 
-app.get("/api/clientes", autenticar, autorizar("admin", "head-admin", "corretor"), (req, res) => {
+app.get("/api/clientes", autenticar, autorizar("admin", "head-admin", "corretor"), async (req, res) => {
   const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
   const isCorretor = cargos.includes("corretor")
   const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
   const usuarioId = req.usuario.id
-  
-  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
+
+  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, c.data_atribuicao, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
   let params = []
-  
+
   if (isCorretor && !isAdmin) {
     query += " WHERE c.usuario_id = $1 OR c.atribuido_a = $2"
     params = [usuarioId, usuarioId]
   }
-  
+
   query += " ORDER BY c.id DESC"
-  
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      console.error("[CLIENTES GET] Erro ao buscar clientes:", err)
-      return res.status(500).json({ error: "Erro ao buscar clientes" })
-    }
+
+  try {
+    const result = await dbQuery(query, params)
+    let rows = result.rows || result || []
     res.json(rows || [])
-  })
+  } catch (err) {
+    console.error("[CLIENTES GET] Erro ao buscar clientes:", err)
+    res.status(500).json({ error: "Erro ao buscar clientes: " + err.message })
+  }
 })
 
 app.post(
@@ -600,13 +609,14 @@ app.post(
 
     // Atribuir automaticamente o cliente apenas se for corretor (sem admin/head-admin)
     const atribuidoA = isOnlyCorretor ? usuarioResponsavel : null
+    const dataAtribuicao = isOnlyCorretor ? new Date().toISOString().split("T")[0] : null
 
-    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, tags })
+    console.log(`[${getDataSaoPaulo()}] [CLIENTES] Criando novo cliente:`, { nome, telefone, email, interesse, valor, status, observacoes, data: dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags })
 
     try {
       const result = await dbQuery(
-        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, tags || null]
+        "INSERT INTO clientes (nome, telefone, email, interesse, valor, status, observacoes, data, usuario_id, atribuido_a, data_atribuicao, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+        [nome, telefone, email || null, interesse, valor || null, status, observacoes || null, dataCliente, usuarioResponsavel, atribuidoA, dataAtribuicao, tags || null]
       )
       const clienteId = result.rows ? result.rows[0]?.id : result.lastID
       console.log(`[${getDataSaoPaulo()}] [CLIENTES] Cliente criado com sucesso, ID:`, clienteId)
@@ -1142,8 +1152,8 @@ app.post(
       }
       
       const resultado = await dbQuery(
-        `UPDATE clientes SET atribuido_a = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2`,
-        [parseInt(corretor_id), parseInt(cliente_id)]
+        `UPDATE clientes SET atribuido_a = $1, data_atribuicao = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3`,
+        [parseInt(corretor_id), new Date().toISOString().split("T")[0], parseInt(cliente_id)]
       )
       
       // Get client and corretor names for proper logging
@@ -1183,9 +1193,17 @@ app.delete(
         return res.status(404).json({ error: "Cliente ou vínculo não encontrado" })
       }
       
+      // Obter nome do cliente para o log
+      const clienteInfo = await dbQuery("SELECT nome FROM clientes WHERE id = $1", [cliente_id])
+      const nomeCliente = clienteInfo.rows[0]?.nome || cliente_id
+
+      // Obter nome do corretor para o log
+      const corretorInfo = await dbQuery("SELECT nome FROM usuarios WHERE id = $1", [corretor_id])
+      const nomeCorretor = corretorInfo.rows[0]?.nome || corretor_id
+
       await dbQuery(
-        `INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao) VALUES ($1, $2, $3, $4)`,
-        [req.usuario.id, "REMOVER_CLIENTE", "CORRETORES", `Cliente ${cliente_id} removido do corretor ${corretor_id}`]
+        `INSERT INTO logs_auditoria (usuario_id, acao, modulo, descricao, usuario_afetado, ip_address) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [req.usuario.id, "REMOVER_CLIENTE", "CORRETORES", `Cliente "${nomeCliente}" removido do corretor "${nomeCorretor}" (cliente agora sem atribuição)`, nomeCliente, req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0]?.trim()]
       )
       
       console.log(`[${getDataSaoPaulo()}] [CORRETORES] Cliente ${cliente_id} removido do corretor ${corretor_id} por ${req.usuario.username}`)
@@ -1222,12 +1240,98 @@ app.get(
 app.delete("/api/logs", autenticar, autorizar("head-admin", "admin"), async (req, res) => {
   try {
     await dbQuery(`DELETE FROM logs_auditoria`)
-    
+
     console.log(`[${getDataSaoPaulo()}] [LOGS] Todos os logs foram deletados pelo usuário:`, req.usuario.username)
     res.json({ message: "Logs deletados com sucesso" })
   } catch (err) {
     console.error(`[${getDataSaoPaulo()}] [LOGS] Erro ao deletar logs:`, err)
     res.status(500).json({ error: "Erro ao deletar logs: " + err.message })
+  }
+})
+
+// ===== ROTA PARA HISTÓRICO DE ATRIBUIÇÕES =====
+app.get("/api/clientes/:id/historico-atribuicoes", autenticar, autorizar("admin", "head-admin"), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    // Verificar se o cliente existe
+    const cliente = await dbQuery("SELECT nome, data, criado_em FROM clientes WHERE id = $1", [id])
+    if (cliente.rows.length === 0) {
+      return res.status(404).json({ error: "Cliente não encontrado" })
+    }
+
+    // Buscar histórico de atribuições nos logs
+    const logs = await dbQuery(`
+      SELECT l.*, u.nome as usuario_logado_nome
+      FROM logs_auditoria l
+      LEFT JOIN usuarios u ON l.usuario_id = u.id
+      WHERE l.modulo = 'CORRETORES'
+        AND (l.acao = 'ATRIBUIR_CLIENTE' OR l.acao = 'REMOVER_CLIENTE')
+        AND l.usuario_afetado = $1
+      ORDER BY l.criado_em ASC
+    `, [cliente.rows[0].nome])
+
+    // Buscar primeira atribuição (se houver) e data de cadastro
+    const primeiraAtribuicao = await dbQuery(`
+      SELECT c.atribuido_a, c.criado_em, c.data as data_cadastro, u.nome as corretor_nome
+      FROM clientes c
+      LEFT JOIN usuarios u ON c.atribuido_a = u.id
+      WHERE c.id = $1 AND c.atribuido_a IS NOT NULL
+    `, [id])
+
+    // Função para formatar data no timezone de São Paulo
+    const formatarDataSaoPaulo = (dataString) => {
+      if (!dataString) return "-"
+      const data = new Date(dataString)
+      return data.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
+    }
+
+    // Função para formatar data simples (apenas data, sem hora)
+    const formatarDataSimples = (dataString) => {
+      if (!dataString) return "-"
+      try {
+        const data = new Date(dataString)
+        return data.toLocaleDateString('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        })
+      } catch (error) {
+        console.error("Erro ao formatar data:", error, "dataString:", dataString)
+        return "-"
+      }
+    }
+
+    const historico = {
+      cliente_nome: cliente.rows[0].nome,
+      // Usar criado_em que tem a data e hora reais da criação
+      data_cadastro: formatarDataSaoPaulo(cliente.rows[0].criado_em),
+      primeira_atribuicao: primeiraAtribuicao.rows.length > 0 ? {
+        corretor_nome: primeiraAtribuicao.rows[0].corretor_nome,
+        data: formatarDataSaoPaulo(primeiraAtribuicao.rows[0].criado_em)
+      } : null,
+      atribuicoes: logs.rows.map(log => ({
+        acao: log.acao,
+        descricao: log.descricao,
+        usuario_logado: log.usuario_logado_nome || log.usuario_afetado,
+        data: formatarDataSaoPaulo(log.criado_em)
+      }))
+    }
+
+    res.json(historico)
+  } catch (err) {
+    console.error(`[${getDataSaoPaulo()}] [HISTORICO ATRIBUICOES] Erro ao buscar histórico:`, err)
+    res.status(500).json({ error: "Erro ao buscar histórico de atribuições: " + err.message })
   }
 })
 
