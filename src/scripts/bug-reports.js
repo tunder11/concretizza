@@ -599,7 +599,7 @@ async function enviarMensagem(e) {
   try {
     // Enviar mensagem via Socket.IO (que também salva no banco)
     socket.emit('send-message', {
-      bugReportId: currentBugReport.id,
+      id: currentBugReport.id,
       mensagem: mensagem
     })
 
