@@ -67,7 +67,14 @@ function adicionarMensagemAoChat(messageData) {
   const usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"))
   const isOwn = messageData.usuario_id === usuarioLogado.id
   const avatar = messageData.usuario_nome.charAt(0).toUpperCase()
+
+  // Debug: verificar se a data está sendo recebida
+  console.log('Recebendo messageData:', messageData)
+  console.log('criado_em:', messageData.criado_em, typeof messageData.criado_em)
+
   const time = formatarDataHora(messageData.criado_em)
+
+  console.log('Time formatado:', time)
 
   const messageElement = document.createElement('div')
   messageElement.className = `chat-message ${isOwn ? 'own' : ''}`

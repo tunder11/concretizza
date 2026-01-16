@@ -1835,9 +1835,8 @@ io.on('connection', (socket) => {
       await dbQuery("UPDATE bug_reports SET atualizado_em = CURRENT_TIMESTAMP WHERE id = $1", [id])
 
       const messageId = result.rows ? result.rows[0]?.id : result.lastID
-      // For criado_em, we need to get it separately since we removed RETURNING
-      const messageInfo = await dbQuery("SELECT criado_em FROM bug_report_messages WHERE id = $1", [messageId])
-      const criadoEm = messageInfo.rows ? messageInfo.rows[0]?.criado_em : null
+      // Get the created timestamp
+      const criadoEm = new Date().toISOString()
 
       // Buscar dados do usuário para a resposta
       const userResult = await dbQuery("SELECT nome, username FROM usuarios WHERE id = $1", [usuarioId])
