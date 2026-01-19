@@ -667,7 +667,7 @@ function voltarParaLista() {
 // Utility functions
 function formatarData(data) {
   if (!data) return "-"
-  const d = new Date(data + 'T12:00:00')
+  const d = new Date(data)
   return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
 }
 
