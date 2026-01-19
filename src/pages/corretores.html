@@ -341,6 +341,142 @@
         </div>
     </div>
 
+    <!-- Modal de detalhes do cliente -->
+    <div id="modalDetalhesCliente" class="modal">
+        <div class="modal-content modal-details">
+            <div class="modal-header">
+                <h2>Detalhes do Cliente</h2>
+                <button class="modal-close" id="closeDetailsModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="user-profile-header">
+                    <div class="profile-avatar">
+                        <span id="detailAvatar">C</span>
+                    </div>
+                    <div class="profile-info">
+                        <h3 id="detailNomeHeader">-</h3>
+                        <span id="detailStatusHeader" class="badge">-</span>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Telefone</span>
+                            <span class="detail-value" id="detailTelefone">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Email</span>
+                            <span class="detail-value" id="detailEmail">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Tipo de Interesse</span>
+                            <span class="detail-value" id="detailInteresse">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Valor Aproximado</span>
+                            <span class="detail-value" id="detailValor">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Data de Atribuição</span>
+                            <span class="detail-value" id="detailData">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Status</span>
+                            <span class="detail-value" id="detailStatus">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item" id="detailCadastradoPorContainer" style="display: none;">
+                        <div class="detail-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Cadastrado por</span>
+                            <span class="detail-value" id="detailCadastradoPor">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item" id="detailAtribuidoAContainer" style="display: none;">
+                        <div class="detail-icon">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Atribuído a</span>
+                            <span class="detail-value" id="detailAtribuidoA">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full" id="detailTagsContainer" style="display: none;">
+                        <div class="detail-icon">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Tags</span>
+                            <div class="tags-container" id="detailTags">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-item detail-full">
+                        <div class="detail-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="detail-info">
+                            <span class="detail-label">Observações</span>
+                            <span class="detail-value" id="detailObservacoes">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-actions">
+                    <button class="btn-secondary" id="btnWhatsApp">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </button>
+                    <button class="btn-primary" id="btnEditarDetalhes" style="display: none;">
+                        <i class="fas fa-edit"></i> Editar Cliente
+                    </button>
+                    <button class="btn-secondary" id="btnFecharDetalhes">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/scripts/utils/api.js"></script>
     <script src="/scripts/utils/data.js"></script>
     <script src="/scripts/utils/permissions.js"></script>
