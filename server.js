@@ -141,18 +141,42 @@ function getDataSaoPaulo() {
 }
 
 function getDataSaoPauloDate(dateString) {
-  const date = new Date(dateString)
-  const formatter = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
-  const parts = formatter.formatToParts(date)
-  const day = parts.find(p => p.type === 'day')?.value
-  const month = parts.find(p => p.type === 'month')?.value
-  const year = parts.find(p => p.type === 'year')?.value
-  return `${year}-${month}-${day}`
+  if (!dateString) return null
+
+  // Se já estiver no formato YYYY-MM-DD, retornar como está
+  if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString
+  }
+
+  // Se for uma string de data/hora já formatada em pt-BR, extrair apenas a data
+  if (typeof dateString === 'string' && /^\d{2}\/\d{2}\/\d{4}/.test(dateString)) {
+    const [datePart] = dateString.split(',')
+    const [day, month, year] = datePart.split('/')
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  }
+
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      console.error('Data inválida para getDataSaoPauloDate:', dateString)
+      return null
+    }
+
+    const formatter = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    const parts = formatter.formatToParts(date)
+    const day = parts.find(p => p.type === 'day')?.value
+    const month = parts.find(p => p.type === 'month')?.value
+    const year = parts.find(p => p.type === 'year')?.value
+    return `${year}-${month}-${day}`
+  } catch (error) {
+    console.error('Erro ao processar data em getDataSaoPauloDate:', dateString, error)
+    return null
+  }
 }
 
 // ===== CRIAR TABELAS =====
@@ -378,8 +402,19 @@ async function initializeTables() {
         console.log(`[${getDataSaoPaulo()}] Migrando ${clientesParaMigrar.rows.length} clientes com data_atribuicao ausente...`)
 
         for (const cliente of clientesParaMigrar.rows) {
-          // Usar a data de criação como data de atribuição aproximada, convertida para timezone de São Paulo
-          const dataAtribuicao = cliente.criado_em ? getDataSaoPauloDate(cliente.criado_em) : getDataSaoPauloDate(new Date().toISOString())
+          // Se criado_em já está no formato correto (sem timezone UTC), extrair apenas a data
+          let dataAtribuicao
+          if (cliente.criado_em && typeof cliente.criado_em === 'string') {
+            // Se é uma string de data/hora sem timezone, assumir que já está em São Paulo
+            if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(cliente.criado_em)) {
+              dataAtribuicao = cliente.criado_em.split(' ')[0] // Extrair apenas YYYY-MM-DD
+            } else {
+              // Caso contrário, usar a função de conversão
+              dataAtribuicao = getDataSaoPauloDate(cliente.criado_em)
+            }
+          } else {
+            dataAtribuicao = getDataSaoPauloDate(new Date().toISOString())
+          }
 
           await dbQuery("UPDATE clientes SET data_atribuicao = $1 WHERE id = $2", [dataAtribuicao, cliente.id])
           console.log(`[${getDataSaoPaulo()}] ✓ Cliente ${cliente.nome} (ID: ${cliente.id}) - data_atribuicao definida como: ${dataAtribuicao}`)
@@ -1190,9 +1225,11 @@ app.post(
         return res.status(400).json({ error: "Este cliente já está atribuído a este corretor" })
       }
       
+      const dataAtribuicaoAtual = getDataSaoPauloDate(new Date().toISOString())
+
       const resultado = await dbQuery(
         `UPDATE clientes SET atribuido_a = $1, data_atribuicao = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3`,
-        [parseInt(corretor_id), new Date().toISOString().split("T")[0], parseInt(cliente_id)]
+        [parseInt(corretor_id), dataAtribuicaoAtual, parseInt(cliente_id)]
       )
       
       // Get client and corretor names for proper logging

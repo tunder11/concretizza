@@ -342,8 +342,8 @@ function adicionarLog(usuario, acao, modulo, descricao) {
 
 function formatarData(data) {
   if (!data) return "-"
-  const d = new Date(data)
-  return d.toLocaleString("pt-BR")
+  const d = new Date(data + 'T12:00:00')
+  return d.toLocaleString("pt-BR", { timeZone: 'America/Sao_Paulo' })
 }
 
 function formatarCargo(cargo) {

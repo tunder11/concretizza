@@ -617,11 +617,8 @@ async function confirmarExclusao() {
 
 function formatarData(data) {
   if (!data) return "-"
-  const d = new Date(data)
-  // Ajuste de fuso horário para exibir corretamente a data (evitar dia anterior)
-  const userTimezoneOffset = d.getTimezoneOffset() * 60000
-  const adjustedDate = new Date(d.getTime() + userTimezoneOffset)
-  return adjustedDate.toLocaleDateString("pt-BR")
+  const d = new Date(data + 'T12:00:00')
+  return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
 }
 
 function formatarTipo(tipo) {

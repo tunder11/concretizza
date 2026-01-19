@@ -202,8 +202,8 @@ async function salvarClienteRapido() {
 
 function formatarData(data) {
   if (!data) return "-"
-  const d = new Date(data)
-  return d.toLocaleDateString("pt-BR")
+  const d = new Date(data + 'T12:00:00')
+  return d.toLocaleDateString("pt-BR", { timeZone: 'America/Sao_Paulo' })
 }
 
 function formatarStatus(status) {
