@@ -156,12 +156,20 @@
                     </div>
 
                     <div class="filter-bar">
-                        <input type="text" id="searchClientesDisponiveis" placeholder="Buscar cliente..." class="search-input">
+                        <input type="text" id="searchClientesDisponiveis" placeholder="Buscar por nome, telefone ou email..." class="search-input">
                         <select id="filterStatusClientes" class="select-input">
                             <option value="">Todos os status</option>
                             <option value="novo">Novo</option>
                             <option value="prioridade">Prioridade</option>
                             <option value="pré-atendido">Pré-Atendido</option>
+                            <option value="em-atendimento">Em Atendimento</option>
+                            <option value="finalizado">Finalizado</option>
+                        </select>
+                        <select id="filterInteresseClientes" class="select-input">
+                            <option value="">Todos os interesses</option>
+                            <option value="alugar">Alugar</option>
+                            <option value="comprar">Comprar</option>
+                            <option value="vender">Vender</option>
                         </select>
                         <div class="bulk-actions">
                             <button class="btn-primary" id="btnAtribuirSelecionados" style="display: none;">

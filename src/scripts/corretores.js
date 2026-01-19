@@ -75,8 +75,10 @@ async function carregarCorretoresEClientes() {
     // Clear filter inputs
     const searchClientesDisponiveis = document.getElementById("searchClientesDisponiveis")
     const filterStatusClientes = document.getElementById("filterStatusClientes")
+    const filterInteresseClientes = document.getElementById("filterInteresseClientes")
     if (searchClientesDisponiveis) searchClientesDisponiveis.value = ""
     if (filterStatusClientes) filterStatusClientes.value = ""
+    if (filterInteresseClientes) filterInteresseClientes.value = ""
 
     renderizarCorretores()
   atualizarClientesDisponiveis()
@@ -403,6 +405,7 @@ function configurarEventos() {
   
   document.getElementById("searchClientesDisponiveis").addEventListener("input", filtrarClientesDisponiveis)
   document.getElementById("filterStatusClientes").addEventListener("change", filtrarClientesDisponiveis)
+  document.getElementById("filterInteresseClientes").addEventListener("change", filtrarClientesDisponiveis)
   
   document.getElementById("prevPageDisponiveis").addEventListener("click", () => {
     if (currentPageDisponiveis > 1) {
@@ -505,16 +508,21 @@ function filtrarCorretores() {
 
 function filtrarClientesDisponiveis() {
   const search = document.getElementById("searchClientesDisponiveis").value.toLowerCase()
-  const status = document.getElementById("filterStatusClientes").value
+  const filterStatus = document.getElementById("filterStatusClientes").value
+  const filterInteresse = document.getElementById("filterInteresseClientes").value
 
   clientesDisponiveisFiltrados = clientes.filter(cliente => {
-    if (cliente.atribuido_a || cliente.status === 'finalizado') return false
-    const matchSearch = cliente.nome.toLowerCase().includes(search)
-    const matchStatus = !status || cliente.status === status
-    return matchSearch && matchStatus
+    if (cliente.atribuido_a) return false
+    const matchSearch =
+      cliente.nome.toLowerCase().includes(search) ||
+      cliente.telefone.includes(search) ||
+      (cliente.email && cliente.email.toLowerCase().includes(search))
+    const matchStatus = !filterStatus || cliente.status === filterStatus
+    const matchInteresse = !filterInteresse || cliente.interesse === filterInteresse
+    return matchSearch && matchStatus && matchInteresse
   })
 
-  filtrosAtivosDisponiveis = search.length > 0 || status.length > 0
+  filtrosAtivosDisponiveis = search.length > 0 || filterStatus.length > 0 || filterInteresse.length > 0
 
   const countEl = document.getElementById("countClientesDisponiveis")
   if (countEl) {
@@ -522,6 +530,8 @@ function filtrarClientesDisponiveis() {
   }
 
   currentPageDisponiveis = 1
+  // Preserve selections that are still in the filtered list
+  clientesSelecionadosDisponiveis = clientesSelecionadosDisponiveis.filter(id => clientesDisponiveisFiltrados.some(c => c.id.toString() === id))
   atualizarClientesDisponiveis()
 }
 
