@@ -161,12 +161,17 @@
                     </select>
                 </div>
 
-                <!-- Added bulk delete button that appears when clients are selected -->
+                <!-- Added bulk actions that appear when clients are selected -->
                 <div class="bulk-actions" id="bulkActions" style="display: none;">
                     <span id="selectedCount">0 cliente(s) selecionado(s)</span>
-                    <button class="btn-danger" id="btnExcluirSelecionados">
-                        <i class="fas fa-trash"></i> Excluir Selecionados
-                    </button>
+                    <div class="bulk-buttons">
+                        <button class="btn-primary" id="btnEditarSelecionados">
+                            <i class="fas fa-edit"></i> Editar Status
+                        </button>
+                        <button class="btn-danger" id="btnExcluirSelecionados">
+                            <i class="fas fa-trash"></i> Excluir Selecionados
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -484,6 +489,43 @@
                         <i class="fas fa-sign-out-alt"></i> Sair
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de edição em massa de status -->
+    <div id="modalEditarSelecionados" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Status dos Clientes Selecionados</h2>
+                <button class="modal-close" id="closeEditarSelecionados">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="bulk-edit-info">
+                    <p><strong id="bulkEditCount">0</strong> cliente(s) selecionado(s)</p>
+                    <div id="bulkEditClientesList" class="bulk-edit-list">
+                        <!-- Lista de clientes será inserida aqui -->
+                    </div>
+                </div>
+                <form id="formEditarSelecionados" class="form">
+                    <div class="form-group">
+                        <label for="bulkEditStatus">Novo Status *</label>
+                        <select id="bulkEditStatus" required>
+                            <option value="">Selecione o status</option>
+                            <option value="novo">Novo</option>
+                            <option value="em-atendimento">Em Atendimento</option>
+                            <option value="prioridade">Prioridade</option>
+                            <option value="pré-atendido">Pré-Atendido</option>
+                            <option value="finalizado">Finalizado</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary modal-close-btn" id="btnCancelarBulkEdit">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnSalvarBulkEdit">
+                            <i class="fas fa-save"></i> Aplicar Alterações
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

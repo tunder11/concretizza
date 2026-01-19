@@ -466,6 +466,11 @@ function configurarEventos() {
     })
   }
 
+  const btnEditarSelecionados = document.getElementById("btnEditarSelecionados")
+  if (btnEditarSelecionados) {
+    btnEditarSelecionados.addEventListener("click", abrirModalEditarSelecionados)
+  }
+
   const btnExcluirSelecionados = document.getElementById("btnExcluirSelecionados")
   if (btnExcluirSelecionados) {
     btnExcluirSelecionados.addEventListener("click", excluirSelecionados)
@@ -529,6 +534,29 @@ function configurarEventos() {
   if (btnCancelarExclusao) {
     btnCancelarExclusao.addEventListener("click", () => {
       document.getElementById("modalConfirmacao").style.display = "none"
+    })
+  }
+
+  // Modal bulk edit event listeners
+  const closeEditarSelecionados = document.getElementById("closeEditarSelecionados")
+  if (closeEditarSelecionados) {
+    closeEditarSelecionados.addEventListener("click", () => {
+      document.getElementById("modalEditarSelecionados").style.display = "none"
+    })
+  }
+
+  const btnCancelarBulkEdit = document.getElementById("btnCancelarBulkEdit")
+  if (btnCancelarBulkEdit) {
+    btnCancelarBulkEdit.addEventListener("click", () => {
+      document.getElementById("modalEditarSelecionados").style.display = "none"
+    })
+  }
+
+  const formEditarSelecionados = document.getElementById("formEditarSelecionados")
+  if (formEditarSelecionados) {
+    formEditarSelecionados.addEventListener("submit", (e) => {
+      e.preventDefault()
+      salvarEdicaoEmMassa()
     })
   }
 
@@ -948,6 +976,137 @@ async function executarExclusaoEmMassa() {
     if (btnConfirmar) {
       btnConfirmar.disabled = false
     }
+  }
+}
+
+function abrirModalEditarSelecionados() {
+  if (clientesSelecionados.length === 0) {
+    mostrarNotificacao("Nenhum cliente selecionado", "aviso")
+    return
+  }
+
+  // Verificar permissões
+  const usuarioLogado = obterUsuarioLogado()
+  const podeEditar = obterPermissao(usuarioLogado, "clientes", "update")
+  const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
+  const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
+
+  if (!podeEditar && !isCorretor) {
+    mostrarNotificacao("Você não tem permissão para editar clientes", "erro")
+    return
+  }
+
+  // Para corretores, verificar se todos os clientes selecionados são deles
+  if (isCorretor) {
+    const clientesNaoAutorizados = clientesSelecionados.filter(id => {
+      const cliente = clientes.find(c => c.id === id)
+      return cliente && cliente.usuario_id !== usuarioLogado.id && cliente.atribuido_a !== usuarioLogado.id
+    })
+
+    if (clientesNaoAutorizados.length > 0) {
+      mostrarNotificacao("Você só pode editar clientes que criou ou que estão atribuídos a você", "erro")
+      return
+    }
+  }
+
+  // Preencher informações do modal
+  document.getElementById("bulkEditCount").textContent = clientesSelecionados.length
+
+  // Mostrar lista de clientes selecionados
+  const listaContainer = document.getElementById("bulkEditClientesList")
+  if (listaContainer) {
+    const clientesSelecionadosInfo = clientesSelecionados.map(id => {
+      const cliente = clientes.find(c => c.id === id)
+      return cliente ? `<div class="bulk-client-item">${cliente.nome}</div>` : ""
+    }).filter(Boolean)
+
+    listaContainer.innerHTML = clientesSelecionadosInfo.join("")
+  }
+
+  // Resetar formulário
+  const form = document.getElementById("formEditarSelecionados")
+  if (form) {
+    form.reset()
+  }
+
+  // Mostrar modal
+  document.getElementById("modalEditarSelecionados").style.display = "flex"
+}
+
+async function salvarEdicaoEmMassa() {
+  const novoStatus = document.getElementById("bulkEditStatus").value
+
+  if (!novoStatus) {
+    mostrarNotificacao("Selecione um status", "aviso")
+    return
+  }
+
+  const btnSalvar = document.getElementById("btnSalvarBulkEdit")
+  try {
+    if (btnSalvar) {
+      btnSalvar.disabled = true
+      btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'
+    }
+
+    mostrarCarregando(true)
+
+    // Atualizar cada cliente selecionado
+    const atualizacoes = []
+    for (const id of clientesSelecionados) {
+      const cliente = clientes.find((c) => c.id === id)
+      if (cliente) {
+        const clienteAtualizado = {
+          ...cliente,
+          status: novoStatus
+        }
+
+        try {
+          await atualizarCliente(id, clienteAtualizado)
+          registrarLog("EDITAR", "CLIENTES", `Status do cliente "${cliente.nome}" alterado para "${formatarStatus(novoStatus)}" (em massa)`, cliente.nome)
+
+          // Atualizar no array local
+          const clienteIndex = clientes.findIndex(c => c.id === id)
+          if (clienteIndex !== -1) {
+            clientes[clienteIndex] = {
+              ...clientes[clienteIndex],
+              status: novoStatus,
+              atualizado_em: new Date().toISOString()
+            }
+          }
+
+          atualizacoes.push(cliente.nome)
+        } catch (error) {
+          console.error(`Erro ao atualizar cliente ${cliente.nome}:`, error)
+        }
+      }
+    }
+
+    document.getElementById("modalEditarSelecionados").style.display = "none"
+
+    if (atualizacoes.length > 0) {
+      mostrarNotificacao(`${atualizacoes.length} cliente(s) atualizado(s) com sucesso!`, "sucesso")
+    } else {
+      mostrarNotificacao("Nenhum cliente foi atualizado", "aviso")
+    }
+
+    // Limpar seleções
+    clientesSelecionados = []
+    document.querySelectorAll(".cliente-checkbox").forEach(cb => cb.checked = false)
+    document.getElementById("selectAll").checked = false
+    atualizarCheckboxes()
+
+    // Atualizar tabela e estatísticas
+    filtrarClientes()
+    atualizarEstatisticas()
+
+  } catch (error) {
+    mostrarNotificacao("Erro ao atualizar clientes: " + error.message, "erro")
+  } finally {
+    if (btnSalvar) {
+      btnSalvar.disabled = false
+      btnSalvar.innerHTML = '<i class="fas fa-save"></i> Aplicar Alterações'
+    }
+    mostrarCarregando(false)
   }
 }
 
