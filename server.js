@@ -1187,15 +1187,17 @@ app.get(
   async (req, res) => {
     try {
       const { id } = req.params
-      
+
       const resultado = await dbQuery(
-        `SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data
+        `SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, c.data_atribuicao, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome
          FROM clientes c
+         LEFT JOIN usuarios u ON c.usuario_id = u.id
+         LEFT JOIN usuarios ua ON c.atribuido_a = ua.id
          WHERE c.atribuido_a = $1
          ORDER BY c.nome`,
         [parseInt(id)]
       )
-      
+
       res.json(resultado.rows || [])
     } catch (err) {
       console.error(`[${getDataSaoPaulo()}] [CORRETORES] Erro ao buscar clientes do corretor:`, err)

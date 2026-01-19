@@ -278,6 +278,130 @@
   z-index: 10;
 }
 
+/* Client details modal styles */
+#modalDetalhesCliente .modal-content {
+  max-width: 600px;
+  width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#modalDetalhesCliente .modal-body {
+  padding: var(--spacing-lg);
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#modalDetalhesCliente .user-profile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+#modalDetalhesCliente .profile-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--color-gold-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  font-size: 1.5rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+#modalDetalhesCliente .profile-info h3 {
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--color-white);
+  font-size: 1.25rem;
+}
+
+#modalDetalhesCliente .details-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  flex: 1;
+}
+
+#modalDetalhesCliente .detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#modalDetalhesCliente .detail-item.detail-full {
+  grid-column: 1 / -1;
+}
+
+#modalDetalhesCliente .detail-icon {
+  color: var(--color-gold-primary);
+  font-size: 1.1rem;
+  margin-top: 2px;
+  min-width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+#modalDetalhesCliente .detail-info {
+  flex: 1;
+  min-width: 0;
+}
+
+#modalDetalhesCliente .detail-label {
+  display: block;
+  color: var(--color-gray-light);
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+}
+
+#modalDetalhesCliente .detail-value {
+  display: block;
+  color: var(--color-white);
+  font-size: 0.95rem;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+#modalDetalhesCliente .tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+#modalDetalhesCliente .tag-badge {
+  background: rgba(255, 215, 0, 0.1);
+  color: var(--color-gold-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+#modalDetalhesCliente .details-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
 /* Improve checkbox column width */
 #modalClientesCorretor .table th:first-child,
 #modalClientesCorretor .table td:first-child {

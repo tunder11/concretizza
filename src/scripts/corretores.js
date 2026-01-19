@@ -318,13 +318,13 @@ async function abrirClientesCorretor(corretorId, corretorNome) {
       tbody.innerHTML = `<tr><td colspan="6" class="text-center">Este corretor não possui clientes atribuídos</td></tr>`
     } else {
       tbody.innerHTML = clientesCorretor.map(cliente => `
-        <tr onclick="abrirDetalhesClienteCorretor(${cliente.id})" style="cursor: pointer;">
-          <td onclick="event.stopPropagation();"><input type="checkbox" class="cliente-corretor-checkbox" data-cliente-id="${cliente.id}"></td>
+        <tr>
+          <td><input type="checkbox" class="cliente-corretor-checkbox" data-cliente-id="${cliente.id}"></td>
           <td>${cliente.nome}</td>
           <td>${cliente.telefone}</td>
           <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
           <td>${cliente.interesse ? formatarInteresse(cliente.interesse) : "-"}</td>
-          <td onclick="event.stopPropagation();">
+          <td>
             <button class="btn-action btn-delete" onclick="removerClienteCorretor(${corretorId}, ${cliente.id}, '${cliente.nome}')">
               <i class="fas fa-unlink"></i> Remover
             </button>
@@ -431,26 +431,7 @@ function configurarEventos() {
     document.getElementById("modalConfirmarRemocao").classList.remove("show")
   })
 
-  const closeDetailsModal = document.getElementById("closeDetailsModal")
-  if (closeDetailsModal) {
-    closeDetailsModal.addEventListener("click", () => {
-      document.getElementById("modalDetalhesCliente").style.display = "none"
-    })
-  }
 
-  const btnFecharDetalhes = document.getElementById("btnFecharDetalhes")
-  if (btnFecharDetalhes) {
-    btnFecharDetalhes.addEventListener("click", () => {
-      document.getElementById("modalDetalhesCliente").style.display = "none"
-    })
-  }
-
-  const btnWhatsApp = document.getElementById("btnWhatsApp")
-  if (btnWhatsApp) {
-    btnWhatsApp.addEventListener("click", () => {
-      // This will be handled in the abrirDetalhesClienteCorretor function
-    })
-  }
 
   document.querySelectorAll(".modal-close-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -629,94 +610,7 @@ async function atribuirCliente(e) {
   }
 }
 
-async function abrirDetalhesClienteCorretor(clienteId) {
-  try {
-    // Find client in the loaded clients array
-    const cliente = clientes.find(c => c.id === clienteId)
-    if (!cliente) {
-      mostrarNotificacao("Cliente não encontrado", "erro")
-      return
-    }
 
-    // Populate modal fields
-    document.getElementById("detailAvatar").textContent = cliente.nome.charAt(0).toUpperCase()
-    document.getElementById("detailNomeHeader").textContent = cliente.nome
-    document.getElementById("detailStatusHeader").textContent = formatarStatus(cliente.status)
-    document.getElementById("detailStatusHeader").className = `badge badge-${cliente.status}`
-    document.getElementById("detailTelefone").textContent = cliente.telefone
-    document.getElementById("detailEmail").textContent = cliente.email || "-"
-    document.getElementById("detailInteresse").textContent = formatarInteresse(cliente.interesse)
-    document.getElementById("detailValor").textContent = cliente.valor ? `R$ ${cliente.valor}` : "-"
-    document.getElementById("detailData").textContent = formatarData(cliente.data_atribuicao)
-    document.getElementById("detailStatus").textContent = formatarStatus(cliente.status)
-    document.getElementById("detailObservacoes").textContent = cliente.observacoes || "-"
-
-    // Renderizar Tags
-    const detailTagsContainer = document.getElementById("detailTagsContainer")
-    const detailTags = document.getElementById("detailTags")
-    if (detailTagsContainer && detailTags) {
-      if (cliente.tags) {
-        detailTagsContainer.style.display = "flex"
-        detailTags.innerHTML = cliente.tags.split(',')
-          .map(tag => tag.trim())
-          .filter(tag => tag !== "")
-          .map(tag => `<span class="tag-badge">${tag}</span>`)
-          .join("")
-      } else {
-        detailTagsContainer.style.display = "none"
-        detailTags.innerHTML = ""
-      }
-    }
-
-    // Show admin-only fields if user is admin
-    const isAdminOrHead = isAdminOrHeadAdmin()
-    const detailCadastradoPorContainer = document.getElementById("detailCadastradoPorContainer")
-    if (detailCadastradoPorContainer) {
-      if (isAdminOrHead) {
-        detailCadastradoPorContainer.style.display = ""
-        document.getElementById("detailCadastradoPor").textContent = cliente.cadastrado_por || "-"
-      } else {
-        detailCadastradoPorContainer.style.display = "none"
-      }
-    }
-
-    const detailAtribuidoAContainer = document.getElementById("detailAtribuidoAContainer")
-    if (detailAtribuidoAContainer) {
-      if (isAdminOrHead) {
-        detailAtribuidoAContainer.style.display = ""
-        const detailAtribuidoA = document.getElementById("detailAtribuidoA")
-        detailAtribuidoA.textContent = cliente.atribuido_a_nome || "-"
-        detailAtribuidoA.style.cursor = "default"
-        detailAtribuidoA.style.textDecoration = "none"
-        detailAtribuidoA.style.color = ""
-        detailAtribuidoA.onclick = null
-      } else {
-        detailAtribuidoAContainer.style.display = "none"
-      }
-    }
-
-    // Hide edit button for this modal (since we're in brokers page)
-    const btnEditarDetalhes = document.getElementById("btnEditarDetalhes")
-    if (btnEditarDetalhes) {
-      btnEditarDetalhes.style.display = "none"
-    }
-
-    // Update WhatsApp button click handler
-    const btnWhatsApp = document.getElementById("btnWhatsApp")
-    if (btnWhatsApp && cliente.telefone) {
-      btnWhatsApp.onclick = () => {
-        let telefone = cliente.telefone.replace(/[^\d\s]/g, '').replace(/\s+/g, '')
-        let whatsappNumber = '55' + telefone
-        window.open(`https://wa.me/${whatsappNumber}`, '_blank')
-      }
-    }
-
-    document.getElementById("modalDetalhesCliente").style.display = "flex"
-  } catch (error) {
-    console.error("Erro ao abrir detalhes do cliente:", error)
-    mostrarNotificacao("Erro ao carregar detalhes do cliente: " + error.message, "erro")
-  }
-}
 
 function removerClienteCorretor(corretorId, clienteId, clienteNome) {
   document.getElementById("nomeClienteRemover").textContent = clienteNome
