@@ -157,7 +157,7 @@ function renderizarCorretores() {
           </div>
           <div class="stat-item">
             <span class="stat-value">${corretor.total_clientes || 0}</span>
-            <span class="stat-label">Total</span>
+            <span class="stat-label">Cadastrados</span>
           </div>
         </div>
         
