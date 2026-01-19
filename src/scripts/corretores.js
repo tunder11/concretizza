@@ -311,9 +311,9 @@ async function abrirClientesCorretor(corretorId, corretorNome) {
     const modal = document.getElementById("modalClientesCorretor")
     modal.style.display = "" // Remove inline display style that may prevent modal from opening
     modal.classList.add("show")
-    
+
     const clientesCorretor = await fazerRequisicao(`/api/corretores/${corretorId}/clientes?t=${Date.now()}`, { method: "GET" })
-    
+
     if (clientesCorretor.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="text-center">Este corretor não possui clientes atribuídos</td></tr>`
     } else {
@@ -332,6 +332,9 @@ async function abrirClientesCorretor(corretorId, corretorNome) {
         </tr>
       `).join("")
     }
+
+    // Initialize floating header after table is loaded
+    inicializarCabecalhoFlutuante()
   } catch (error) {
     console.error("Erro ao carregar clientes:", error)
     mostrarNotificacao("Erro ao carregar clientes: " + error.message, "erro")
@@ -648,6 +651,63 @@ function removerClienteCorretor(corretorId, clienteId, clienteNome) {
   btnConfirmar.addEventListener("click", confirmarRemocao)
   btnCancelar.addEventListener("click", cancelarRemocao)
   closeBtn.addEventListener("click", cancelarRemocao)
+}
+
+function inicializarCabecalhoFlutuante() {
+  const modal = document.getElementById("modalClientesCorretor")
+  const tableResponsive = modal.querySelector(".table-responsive")
+  const table = modal.querySelector(".table")
+  const thead = table.querySelector("thead")
+
+  if (!tableResponsive || !table || !thead) return
+
+  // Remove existing floating header if any
+  const existingFloating = modal.querySelector(".floating-header")
+  if (existingFloating) {
+    existingFloating.remove()
+  }
+
+  // Create floating header
+  const floatingHeader = document.createElement("div")
+  floatingHeader.className = "floating-header"
+  floatingHeader.style.cssText = `
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: none;
+    width: 100%;
+  `
+
+  // Clone the thead
+  const clonedThead = thead.cloneNode(true)
+  floatingHeader.appendChild(clonedThead)
+
+  // Insert floating header before table-responsive
+  tableResponsive.parentNode.insertBefore(floatingHeader, tableResponsive)
+
+  // Function to check scroll position
+  const checkScroll = () => {
+    const rect = thead.getBoundingClientRect()
+    const modalRect = modal.getBoundingClientRect()
+
+    // Show floating header when original thead is above the modal top
+    if (rect.top < modalRect.top) {
+      floatingHeader.style.display = "block"
+    } else {
+      floatingHeader.style.display = "none"
+    }
+  }
+
+  // Add scroll listener to table-responsive
+  tableResponsive.addEventListener("scroll", checkScroll)
+
+  // Also listen to modal scroll if any
+  modal.addEventListener("scroll", checkScroll)
+
+  // Initial check
+  checkScroll()
 }
 
 function mostrarCarregando(show) {
