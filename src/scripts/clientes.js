@@ -48,6 +48,14 @@ let clienteEmEdicao = null
 let clienteParaVer = null
 let clientesSelecionados = []
 let corretores = []
+let currentSortIndex = 0
+let sortOptions = [
+  {value: "", label: "Padrão"},
+  {value: "nome", label: "Alfabética"},
+  {value: "data_atribuicao", label: "Data de Atribuição"},
+  {value: "atualizado_em", label: "Última Modificação"}
+]
+window.currentSortValue = ""
 
 async function carregarClientes() {
   try {
@@ -389,6 +397,7 @@ function configurarEventos() {
   const filterStatus = document.getElementById("filterStatus")
   const filterInteresse = document.getElementById("filterInteresse")
   const filterAtribuicao = document.getElementById("filterAtribuicao")
+  const btnOrdenar = document.getElementById("btnOrdenar")
 
   if (searchClientes) {
     searchClientes.addEventListener("input", filtrarClientes)
@@ -401,6 +410,16 @@ function configurarEventos() {
   }
   if (filterAtribuicao) {
     filterAtribuicao.addEventListener("change", filtrarClientes)
+  }
+  if (btnOrdenar) {
+    btnOrdenar.addEventListener("click", () => {
+      currentSortIndex = (currentSortIndex + 1) % sortOptions.length
+      const option = sortOptions[currentSortIndex]
+      btnOrdenar.innerHTML = `<i class="fas fa-sort"></i> Ordenar por: ${option.label}`
+      window.currentSortValue = option.value
+      currentPage = 1
+      filtrarClientes()
+    })
   }
 
   const itemsPerPage = document.getElementById("itemsPerPageBottom")
@@ -528,37 +547,6 @@ function filtrarClientes() {
   const filterStatus = document.getElementById("filterStatus").value
   const filterInteresse = document.getElementById("filterInteresse").value
   const filterAtribuicao = document.getElementById("filterAtribuicao").value
-  const tbody = document.getElementById("clientesTable")
-  const rows = tbody.querySelectorAll("tr")
-
-  let visibleCount = 0
-
-  rows.forEach(row => {
-    // Skip the "no clients found" row if it exists
-    if (row.cells.length === 1 && row.cells[0].colSpan >= 8) {
-      row.style.display = "none"
-      return
-    }
-
-    const clienteId = parseInt(row.querySelector(".cliente-checkbox")?.getAttribute("data-id") || "0")
-    const cliente = clientes.find(c => c.id === clienteId)
-    if (!cliente) {
-      row.style.display = "none"
-      return
-    }
-
-    const matchSearch =
-      cliente.nome.toLowerCase().includes(search) ||
-      cliente.telefone.includes(search) ||
-      (cliente.email && cliente.email.toLowerCase().includes(search))
-    const matchStatus = !filterStatus || cliente.status === filterStatus
-    const matchInteresse = !filterInteresse || cliente.interesse === filterInteresse
-    const matchAtribuicao = !filterAtribuicao || cliente.atribuido_a_nome === filterAtribuicao || cliente.cadastrado_por === filterAtribuicao
-
-    const matches = matchSearch && matchStatus && matchInteresse && matchAtribuicao
-    row.style.display = matches ? "" : "none"
-    if (matches) visibleCount++
-  })
 
   // Update filtered list for pagination
   clientesFiltrados = clientes.filter((cliente) => {
@@ -573,34 +561,23 @@ function filtrarClientes() {
     return matchSearch && matchStatus && matchInteresse && matchAtribuicao
   })
 
-  // Show "no clients found" message if no rows are visible
-  let noResultsRow = tbody.querySelector(".no-results-row")
-  if (visibleCount === 0) {
-    if (!noResultsRow) {
-      const usuarioLogado = obterUsuarioLogado()
-      const isAdminOrHead = isAdminOrHeadAdmin()
-      const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
-      const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
-      const showAtribuido = isAdminOrHead || filterAtribuicao !== ""
-      let colspan = 8
-      if (isCorretor) {
-        colspan -= 1
+  // Apply sorting
+  const sortBy = window.currentSortValue || ""
+  if (sortBy) {
+    clientesFiltrados.sort((a, b) => {
+      if (sortBy === "nome") {
+        return a.nome.localeCompare(b.nome)
+      } else if (sortBy === "data_atribuicao") {
+        const dateA = new Date(a.data_atribuicao || '1970-01-01')
+        const dateB = new Date(b.data_atribuicao || '1970-01-01')
+        return dateB - dateA // descending, newest first
+      } else if (sortBy === "atualizado_em") {
+        const dateA = new Date(a.atualizado_em || a.criado_em || '1970-01-01')
+        const dateB = new Date(b.atualizado_em || b.criado_em || '1970-01-01')
+        return dateB - dateA // descending, newest first
       }
-      if (showAtribuido) {
-        colspan += 1
-      }
-      if (isAdminOrHead) {
-        colspan += 1
-      }
-
-      noResultsRow = document.createElement("tr")
-      noResultsRow.className = "no-results-row"
-      noResultsRow.innerHTML = `<td colspan="${colspan}" class="text-center">Nenhum cliente encontrado</td>`
-      tbody.appendChild(noResultsRow)
-    }
-    noResultsRow.style.display = ""
-  } else if (noResultsRow) {
-    noResultsRow.style.display = "none"
+      return 0
+    })
   }
 
   // Check if current page is still valid after filtering
@@ -611,8 +588,7 @@ function filtrarClientes() {
     currentPage = 1
   }
 
-  atualizarPaginacao()
-  atualizarCheckboxes()
+  atualizarTabela()
 }
 
 async function salvarCliente() {

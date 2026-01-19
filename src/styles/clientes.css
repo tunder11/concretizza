@@ -307,6 +307,11 @@ body {
   font-size: 1.5rem;
 }
 
+.header-actions {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
 /* ===== FILTERS ===== */
 .filter-bar {
   display: flex;
