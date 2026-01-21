@@ -1804,6 +1804,78 @@ body {
   border-bottom: none;
 }
 
+/* ===== CUSTOM DATE INPUT STYLES ===== */
+.detail-input[type="date"] {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-elevated) 100%);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-white);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: text;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Remove default date input styling */
+.detail-input[type="date"]::-webkit-calendar-picker-indicator {
+  background: none;
+  color: var(--color-gold-primary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.detail-input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  background: rgba(255, 215, 0, 0.1);
+  transform: scale(1.1);
+}
+
+.detail-input[type="date"]:focus {
+  outline: none;
+  border-color: var(--color-gold-primary);
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.02) 0%, var(--color-surface-elevated) 100%);
+}
+
+.detail-input[type="date"]:hover {
+  border-color: rgba(255, 215, 0, 0.6);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15);
+}
+
+/* Firefox date input styling */
+.detail-input[type="date"]::-moz-focus-inner {
+  border: 0;
+}
+
+.detail-input[type="date"]:-moz-focusring {
+  outline: none;
+}
+
+/* Placeholder styling for date inputs */
+.detail-input[type="date"]:not(:focus):invalid {
+  color: var(--color-gray);
+}
+
+/* Enhanced date value display styling */
+.detail-value[style*="cursor: pointer"] {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  margin: -0.25rem -0.5rem;
+}
+
+.detail-value[style*="cursor: pointer"]:hover {
+  background: rgba(255, 215, 0, 0.08);
+  color: var(--color-gold-primary);
+  transform: translateY(-1px);
+}
+
 /* ===== RESPONSIVE FOR HISTORY MODAL ===== */
 @media (max-width: 768px) {
   .modal-history {
@@ -1854,5 +1926,18 @@ body {
 
   .bulk-client-item {
     font-size: 0.8125rem;
+  }
+}
+
+/* Responsive date inputs */
+@media (max-width: 768px) {
+  .detail-input[type="date"] {
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.625rem;
+  }
+
+  .detail-input[type="date"]::-webkit-calendar-picker-indicator {
+    font-size: 1rem;
+    padding: 0.2rem;
   }
 }

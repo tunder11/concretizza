@@ -229,7 +229,7 @@ function atualizarTabela() {
   
   const headerData = document.getElementById("headerData")
   if (headerData) {
-    headerData.textContent = "Data Atribuição"
+    headerData.textContent = isCorretor ? "Último Contato" : "Data Atribuição"
   }
 
   const headerCadastradoPor = document.getElementById("headerCadastradoPor")
@@ -276,7 +276,7 @@ function atualizarTabela() {
         <td>${formatarInteresse(cliente.interesse)}</td>
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
         <td>${cliente.valor || "-"}</td>
-        <td>${formatarData(cliente.data_atribuicao)}</td>
+        <td>${isCorretor ? formatarData(cliente.ultimo_contato) : formatarData(cliente.data_atribuicao)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${showAtribuido ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
@@ -914,6 +914,125 @@ function abrirDetalhesCliente(id) {
       detailAtribuidoA.onclick = null
     } else {
       detailAtribuidoAContainer.style.display = "none"
+    }
+  }
+
+  const detailPrimeiroContatoContainer = document.getElementById("detailPrimeiroContatoContainer")
+  const detailPrimeiroContatoInput = document.getElementById("detailPrimeiroContato")
+  const detailPrimeiroContatoValue = document.getElementById("detailPrimeiroContatoValue")
+
+  if (detailPrimeiroContatoContainer && detailPrimeiroContatoInput && detailPrimeiroContatoValue) {
+    if (isCorretor) {
+      detailPrimeiroContatoContainer.style.display = ""
+      detailPrimeiroContatoValue.textContent = cliente.primeiro_contato ? formatarData(cliente.primeiro_contato) : "-"
+      detailPrimeiroContatoValue.style.display = ""
+      detailPrimeiroContatoInput.style.display = "none"
+      detailPrimeiroContatoInput.value = cliente.primeiro_contato || ""
+
+      // Make the value clickable to edit
+      detailPrimeiroContatoValue.style.cursor = "pointer"
+      detailPrimeiroContatoValue.onclick = () => {
+        detailPrimeiroContatoValue.style.display = "none"
+        detailPrimeiroContatoInput.style.display = ""
+        detailPrimeiroContatoInput.focus()
+      }
+
+      // Handle input changes
+      detailPrimeiroContatoInput.onblur = async () => {
+        const newValue = detailPrimeiroContatoInput.value
+        const currentValue = cliente.primeiro_contato || ""
+
+        if (newValue !== currentValue) {
+          try {
+            await atualizarCliente(cliente.id, { primeiro_contato: newValue || null })
+            cliente.primeiro_contato = newValue || null
+            detailPrimeiroContatoValue.textContent = newValue ? formatarData(newValue) : "-"
+            mostrarNotificacao("Primeiro contato atualizado com sucesso!", "sucesso")
+
+            // Update in local array
+            const clienteIndex = clientes.findIndex(c => c.id === cliente.id)
+            if (clienteIndex !== -1) {
+              clientes[clienteIndex].primeiro_contato = newValue || null
+            }
+          } catch (error) {
+            mostrarNotificacao("Erro ao atualizar primeiro contato: " + error.message, "erro")
+            detailPrimeiroContatoInput.value = currentValue
+          }
+        }
+
+        detailPrimeiroContatoInput.style.display = "none"
+        detailPrimeiroContatoValue.style.display = ""
+      }
+
+      // Handle Enter key
+      detailPrimeiroContatoInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          detailPrimeiroContatoInput.blur()
+        }
+      }
+    } else {
+      detailPrimeiroContatoContainer.style.display = "none"
+    }
+  }
+
+  const detailUltimoContatoContainer = document.getElementById("detailUltimoContatoContainer")
+  const detailUltimoContatoInput = document.getElementById("detailUltimoContato")
+  const detailUltimoContatoValue = document.getElementById("detailUltimoContatoValue")
+
+  if (detailUltimoContatoContainer && detailUltimoContatoInput && detailUltimoContatoValue) {
+    if (isCorretor) {
+      detailUltimoContatoContainer.style.display = ""
+      detailUltimoContatoValue.textContent = cliente.ultimo_contato ? formatarData(cliente.ultimo_contato) : "-"
+      detailUltimoContatoValue.style.display = ""
+      detailUltimoContatoInput.style.display = "none"
+      detailUltimoContatoInput.value = cliente.ultimo_contato || ""
+
+      // Make the value clickable to edit
+      detailUltimoContatoValue.style.cursor = "pointer"
+      detailUltimoContatoValue.onclick = () => {
+        detailUltimoContatoValue.style.display = "none"
+        detailUltimoContatoInput.style.display = ""
+        detailUltimoContatoInput.focus()
+      }
+
+      // Handle input changes
+      detailUltimoContatoInput.onblur = async () => {
+        const newValue = detailUltimoContatoInput.value
+        const currentValue = cliente.ultimo_contato || ""
+
+        if (newValue !== currentValue) {
+          try {
+            await atualizarCliente(cliente.id, { ultimo_contato: newValue || null })
+            cliente.ultimo_contato = newValue || null
+            detailUltimoContatoValue.textContent = newValue ? formatarData(newValue) : "-"
+            mostrarNotificacao("Último contato atualizado com sucesso!", "sucesso")
+
+            // Update in local array
+            const clienteIndex = clientes.findIndex(c => c.id === cliente.id)
+            if (clienteIndex !== -1) {
+              clientes[clienteIndex].ultimo_contato = newValue || null
+            }
+
+            // Update table without page reload
+            atualizarTabela()
+          } catch (error) {
+            mostrarNotificacao("Erro ao atualizar último contato: " + error.message, "erro")
+            detailUltimoContatoInput.value = currentValue
+          }
+        }
+
+        detailUltimoContatoInput.style.display = "none"
+        detailUltimoContatoValue.style.display = ""
+      }
+
+      // Handle Enter key
+      detailUltimoContatoInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          detailUltimoContatoInput.blur()
+        }
+      }
+    } else {
+      detailUltimoContatoContainer.style.display = "none"
     }
   }
 

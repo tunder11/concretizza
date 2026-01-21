@@ -475,6 +475,22 @@ async function initializeTables() {
     }
 
     try {
+      await dbQuery("ALTER TABLE clientes ADD COLUMN ultimo_contato TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ultimo_contato já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE clientes ADD COLUMN primeiro_contato TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna primeiro_contato já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
       await dbQuery("ALTER TABLE agendamentos ADD COLUMN corretor_id INTEGER REFERENCES usuarios(id)")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
@@ -729,7 +745,7 @@ app.get("/api/clientes", autenticar, autorizar("admin", "head-admin", "corretor"
   const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
   const usuarioId = req.usuario.id
 
-  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, c.data_atribuicao, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
+  let query = "SELECT c.id, c.nome, c.telefone, c.email, c.interesse, c.valor, c.status, c.observacoes, c.data, c.usuario_id, c.tags, c.data_atribuicao, c.ultimo_contato, c.primeiro_contato, u.nome as cadastrado_por, c.atribuido_a, ua.nome as atribuido_a_nome FROM clientes c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN usuarios ua ON c.atribuido_a = ua.id"
   let params = []
 
   if (isCorretor && !isAdmin) {
@@ -826,16 +842,18 @@ app.put(
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
         }
 
+        const { ultimo_contato, primeiro_contato } = req.body
+
         const result = await dbQuery(
-          "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, atualizado_em = CURRENT_TIMESTAMP WHERE id = $4",
-          [interesse || null, status || null, observacoes || null, id]
+          "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, ultimo_contato = $4, primeiro_contato = $5, atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
+          [interesse || null, status || null, observacoes || null, ultimo_contato || null, primeiro_contato || null, id]
         )
         if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
 
         // Log sempre que houver mudança de status (corretores)
         if (status !== undefined && status !== statusAtual) {
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Status do cliente "${nomeCliente}" alterado de "${statusAtual || 'N/A'}" para "${status || 'N/A'}"`, nomeCliente, req)
-        } else if (interesse !== undefined || observacoes !== undefined) {
+        } else if (interesse !== undefined || observacoes !== undefined || ultimo_contato !== undefined) {
           await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Cliente atualizado (restrito): ${nomeCliente}`, nomeCliente, req)
         }
 
