@@ -108,7 +108,12 @@ const pool = db.pool
 function dbQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
     if (db.isPostgres && pool) {
-      pool.query(sql, params, (err, result) => {
+      // For PostgreSQL, add RETURNING id to INSERT queries that don't have it
+      let modifiedSql = sql
+      if (sql.trim().toUpperCase().startsWith('INSERT') && !sql.toUpperCase().includes('RETURNING')) {
+        modifiedSql = sql + ' RETURNING id'
+      }
+      pool.query(modifiedSql, params, (err, result) => {
         if (err) reject(err)
         else resolve(result)
       })
@@ -1508,7 +1513,7 @@ app.post(
         [titulo, url, descricao || null, criadoPor]
       )
 
-      const linkId = linkResult.lastID
+      const linkId = linkResult.lastID || (linkResult.rows && linkResult.rows[0]?.id)
 
       if (!linkId) {
         console.error("Erro: INSERT result:", linkResult)
