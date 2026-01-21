@@ -1610,23 +1610,44 @@ app.get(
       const isCorretor = cargos.includes("corretor")
       const usuarioId = req.usuario.id
 
-      let query = `
-        SELECT cl.*, uc.nome as criado_por_nome,
-               STRING_AGG(u.nome, ', ') as corretores_nomes
-        FROM corretor_links cl
-        LEFT JOIN link_assignments la ON cl.id = la.link_id
-        LEFT JOIN usuarios u ON la.corretor_id = u.id
-        LEFT JOIN usuarios uc ON cl.criado_por = uc.id
-      `
+      let query, params = []
 
-      let params = []
+      if (db.isPostgres) {
+        // PostgreSQL query with STRING_AGG
+        query = `
+          SELECT cl.*, uc.nome as criado_por_nome,
+                 STRING_AGG(u.nome, ', ') as corretores_nomes
+          FROM corretor_links cl
+          LEFT JOIN link_assignments la ON cl.id = la.link_id
+          LEFT JOIN usuarios u ON la.corretor_id = u.id
+          LEFT JOIN usuarios uc ON cl.criado_por = uc.id
+        `
 
-      if (!isAdmin && isCorretor) {
-        query += " WHERE la.corretor_id = $1"
-        params = [usuarioId]
+        if (!isAdmin && isCorretor) {
+          query += " WHERE la.corretor_id = $1"
+          params = [usuarioId]
+        }
+
+        query += " GROUP BY cl.id ORDER BY cl.criado_em DESC"
+      } else {
+        // SQLite query with GROUP_CONCAT
+        query = `
+          SELECT cl.*,
+                 uc.nome as criado_por_nome,
+                 GROUP_CONCAT(u.nome, ', ') as corretores_nomes
+          FROM corretor_links cl
+          LEFT JOIN link_assignments la ON cl.id = la.link_id
+          LEFT JOIN usuarios u ON la.corretor_id = u.id
+          LEFT JOIN usuarios uc ON cl.criado_por = uc.id
+        `
+
+        if (!isAdmin && isCorretor) {
+          query += " WHERE la.corretor_id = ?"
+          params = [usuarioId]
+        }
+
+        query += " GROUP BY cl.id ORDER BY cl.criado_em DESC"
       }
-
-      query += " GROUP BY cl.id ORDER BY cl.criado_em DESC"
 
       const result = await dbQuery(query, params)
 
