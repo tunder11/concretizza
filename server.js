@@ -195,7 +195,7 @@ async function detectarDuplicatasCliente(nome, telefone, email = null) {
     // Buscar apenas por telefone exato (único critério de duplicata)
     if (telefoneNormalizado && telefoneNormalizado.length >= 7) {
       // Usar uma abordagem simplificada: buscar todos os clientes e filtrar
-    const result = await dbQuery("SELECT id, nome, telefone FROM clientes", [])
+    const result = await dbQuery("SELECT id, nome, telefone, email, status, interesse, valor, observacoes FROM clientes", [])
 
     console.log(`[${getDataSaoPaulo()}] [DUPLICATAS] Buscou ${result.rows.length} clientes do banco para verificar "${telefone}" -> "${telefoneNormalizado}"`)
 

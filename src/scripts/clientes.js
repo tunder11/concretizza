@@ -279,7 +279,7 @@ function atualizarTabela() {
         <td>${cliente.valor || "-"}</td>
         <td>${showLastContact ? formatarData(cliente.ultimo_contato) : formatarData(cliente.data_atribuicao)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
-        ${showAtribuido ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
+        ${showAtribuido ? `<td>${(cliente.atribuido_a_nome && cliente.atribuido_a_nome !== 'undefined') ? cliente.atribuido_a_nome : "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
           ${podeEditarEste ? `<button class="btn-action btn-edit" onclick="editarCliente(${cliente.id})" title="Editar">
             <i class="fas fa-edit"></i> Editar
@@ -636,7 +636,7 @@ function filtrarClientes() {
       (cliente.email && cliente.email.toLowerCase().includes(search))
     const matchStatus = !filterStatus || cliente.status === filterStatus
     const matchInteresse = !filterInteresse || cliente.interesse === filterInteresse
-    const matchAtribuicao = !filterAtribuicao || cliente.atribuido_a_nome === filterAtribuicao || cliente.cadastrado_por === filterAtribuicao
+    const matchAtribuicao = !filterAtribuicao || ((cliente.atribuido_a_nome && cliente.atribuido_a_nome !== 'undefined' && cliente.atribuido_a_nome === filterAtribuicao) || cliente.cadastrado_por === filterAtribuicao)
 
     return matchSearch && matchStatus && matchInteresse && matchAtribuicao
   })
@@ -917,7 +917,7 @@ function abrirDetalhesCliente(id) {
     if (isAdminOrHeadAdmin()) {
       detailAtribuidoAContainer.style.display = ""
       const detailAtribuidoA = document.getElementById("detailAtribuidoA")
-      detailAtribuidoA.textContent = cliente.atribuido_a_nome || "-"
+      detailAtribuidoA.textContent = (cliente.atribuido_a_nome && cliente.atribuido_a_nome !== 'undefined') ? cliente.atribuido_a_nome : "-"
 
       // Remove clickable styles from "atribuído a"
       detailAtribuidoA.style.cursor = "default"
@@ -1473,6 +1473,7 @@ function formatarData(data) {
 }
 
 function formatarStatus(status) {
+  if (!status) return "Novo"
   const map = {
     novo: "Novo",
     "em-atendimento": "Em Atendimento",
@@ -1484,6 +1485,7 @@ function formatarStatus(status) {
 }
 
 function formatarInteresse(interesse) {
+  if (!interesse) return "Alugar"
   const map = {
     alugar: "Alugar",
     comprar: "Comprar",
@@ -1804,7 +1806,7 @@ function mostrarModalDuplicatas(duplicatas, cliente, allowForce = false) {
         <span><i class="fas fa-tag"></i> ${formatarInteresse(duplicata.interesse)}</span>
         ${duplicata.valor ? `<span><i class="fas fa-dollar-sign"></i> R$ ${duplicata.valor}</span>` : ''}
         ${duplicata.cadastrado_por ? `<span><i class="fas fa-user"></i> Por: ${duplicata.cadastrado_por}</span>` : ''}
-        ${duplicata.atribuido_a_nome ? `<span><i class="fas fa-user-tag"></i> Atribuído a: ${duplicata.atribuido_a_nome}</span>` : ''}
+        ${(duplicata.atribuido_a_nome && duplicata.atribuido_a_nome !== 'undefined') ? `<span><i class="fas fa-user-tag"></i> Atribuído a: ${duplicata.atribuido_a_nome}</span>` : ''}
       </div>
     </div>
   `).join("")
