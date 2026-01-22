@@ -224,12 +224,13 @@ function atualizarTabela() {
   const isAdminOrHead = isAdminOrHeadAdmin()
   const cargos = getCargosAsArray(usuarioLogado?.cargo).map(c => c.toLowerCase()) || []
   const isCorretor = cargos.includes('corretor') && !cargos.includes('admin') && !cargos.includes('head-admin')
+  const showLastContact = cargos.includes('head-admin') || cargos.includes('admin') || cargos.includes('corretor')
   const filterAtribuicaoValue = document.getElementById("filterAtribuicao").value
   const showAtribuido = isAdminOrHead || filterAtribuicaoValue !== ""
-  
+
   const headerData = document.getElementById("headerData")
   if (headerData) {
-    headerData.textContent = isCorretor ? "Último Contato" : "Data Atribuição"
+    headerData.textContent = showLastContact ? "Último Contato" : "Data Atribuição"
   }
 
   const headerCadastradoPor = document.getElementById("headerCadastradoPor")
@@ -276,7 +277,7 @@ function atualizarTabela() {
         <td>${formatarInteresse(cliente.interesse)}</td>
         <td><span class="badge badge-${cliente.status}">${formatarStatus(cliente.status)}</span></td>
         <td>${cliente.valor || "-"}</td>
-        <td>${isCorretor ? formatarData(cliente.ultimo_contato) : formatarData(cliente.data_atribuicao)}</td>
+        <td>${showLastContact ? formatarData(cliente.ultimo_contato) : formatarData(cliente.data_atribuicao)}</td>
         ${isAdminOrHead ? `<td>${cliente.cadastrado_por || "-"}</td>` : ""}
         ${showAtribuido ? `<td>${cliente.atribuido_a_nome || "-"}</td>` : ""}
         <td onclick="event.stopPropagation();">
@@ -922,7 +923,7 @@ function abrirDetalhesCliente(id) {
   const detailPrimeiroContatoValue = document.getElementById("detailPrimeiroContatoValue")
 
   if (detailPrimeiroContatoContainer && detailPrimeiroContatoInput && detailPrimeiroContatoValue) {
-    if (isCorretor) {
+    if (isCorretor || isAdminOrHeadAdmin()) {
       detailPrimeiroContatoContainer.style.display = ""
       detailPrimeiroContatoValue.textContent = cliente.primeiro_contato ? formatarData(cliente.primeiro_contato) : "-"
       detailPrimeiroContatoValue.style.display = ""
@@ -980,7 +981,7 @@ function abrirDetalhesCliente(id) {
   const detailUltimoContatoValue = document.getElementById("detailUltimoContatoValue")
 
   if (detailUltimoContatoContainer && detailUltimoContatoInput && detailUltimoContatoValue) {
-    if (isCorretor) {
+    if (isCorretor || isAdminOrHeadAdmin()) {
       detailUltimoContatoContainer.style.display = ""
       detailUltimoContatoValue.textContent = cliente.ultimo_contato ? formatarData(cliente.ultimo_contato) : "-"
       detailUltimoContatoValue.style.display = ""

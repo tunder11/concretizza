@@ -257,18 +257,35 @@ async function initializeTables() {
 
     // Garantir que todas as colunas existam (migrações)
     try {
-      await dbQuery("ALTER TABLE captacoes ADD COLUMN regiao TEXT")
+      await dbQuery("ALTER TABLE clientes ADD COLUMN primeiro_contato TEXT")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Coluna regiao já existe ou erro ao adicionar:`, e.message)
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna primeiro_contato já existe ou erro ao adicionar:`, e.message)
       }
     }
 
     try {
-      await dbQuery("ALTER TABLE captacoes ADD COLUMN valor_estimado TEXT")
+      await dbQuery("ALTER TABLE clientes ADD COLUMN ultimo_contato TEXT")
     } catch (e) {
       if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
-        console.log(`[${getDataSaoPaulo()}] Nota: Coluna valor_estimado já existe ou erro ao adicionar:`, e.message)
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ultimo_contato já existe ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    // Adicionar colunas de contato para usuários (apenas admins e head-admins)
+    try {
+      await dbQuery("ALTER TABLE usuarios ADD COLUMN primeiro_contato TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna primeiro_contato já existe na tabela usuarios ou erro ao adicionar:`, e.message)
+      }
+    }
+
+    try {
+      await dbQuery("ALTER TABLE usuarios ADD COLUMN ultimo_contato TEXT")
+    } catch (e) {
+      if (!e.message?.includes("already exists") && !e.message?.includes("duplicate column")) {
+        console.log(`[${getDataSaoPaulo()}] Nota: Coluna ultimo_contato já existe na tabela usuarios ou erro ao adicionar:`, e.message)
       }
     }
 
@@ -820,7 +837,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { nome, telefone, email, interesse, valor, status, observacoes, tags } = req.body
+    const { nome, telefone, email, interesse, valor, status, observacoes, tags, ultimo_contato, primeiro_contato } = req.body
     const cargos = req.usuario.cargo ? req.usuario.cargo.toLowerCase().split(',').map(c => c.trim()) : []
     const isCorretor = cargos.includes("corretor")
     const isAdmin = cargos.includes("admin") || cargos.includes("head-admin")
@@ -835,14 +852,43 @@ app.put(
       const nomeCliente = clienteAtual.nome
       const statusAtual = clienteAtual.status
 
+      // Check if this is a partial update for contact dates only
+      const isContactUpdateOnly = (ultimo_contato !== undefined || primeiro_contato !== undefined) &&
+                                  (nome === undefined && telefone === undefined && email === undefined &&
+                                   interesse === undefined && valor === undefined && status === undefined &&
+                                   observacoes === undefined && tags === undefined)
+
+      if (isContactUpdateOnly) {
+        // Allow contact date updates for corretores, admins, and head-admins
+        if (isCorretor || isAdmin) {
+          // For pure corretores, check ownership
+          if (isCorretor && !isAdmin) {
+            const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
+            if (cliente.rows[0].usuario_id !== req.usuario.id && cliente.rows[0].atribuido_a !== req.usuario.id) {
+              console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${cliente.rows[0].usuario_id}, atribuido_a: ${cliente.rows[0].atribuido_a}, req.usuario.id: ${req.usuario.id}`)
+              return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
+            }
+          }
+
+          const result = await dbQuery(
+            "UPDATE clientes SET ultimo_contato = $1, primeiro_contato = $2, atualizado_em = CURRENT_TIMESTAMP WHERE id = $3",
+            [ultimo_contato || null, primeiro_contato || null, id]
+          )
+          if (result.rowCount === 0) return res.status(404).json({ error: "Cliente não encontrado" })
+
+          await registrarLog(req.usuario.id, "EDITAR", "Clientes", `Datas de contato atualizadas para cliente: ${nomeCliente}`, nomeCliente, req)
+          return res.json({ success: true, message: "Cliente atualizado com sucesso" })
+        } else {
+          return res.status(403).json({ error: "Permissão negada" })
+        }
+      }
+
       if (isCorretor && !isAdmin) {
         const cliente = await dbQuery("SELECT usuario_id, atribuido_a FROM clientes WHERE id = $1", [id])
         if (cliente.rows[0].usuario_id !== req.usuario.id && cliente.rows[0].atribuido_a !== req.usuario.id) {
           console.log(`[${getDataSaoPaulo()}] [CLIENTES PUT] Corretor tentou editar cliente de outro usuário - usuario_id: ${cliente.rows[0].usuario_id}, atribuido_a: ${cliente.rows[0].atribuido_a}, req.usuario.id: ${req.usuario.id}`)
           return res.status(403).json({ error: "Você não tem permissão para editar este cliente" })
         }
-
-        const { ultimo_contato, primeiro_contato } = req.body
 
         const result = await dbQuery(
           "UPDATE clientes SET interesse = $1, status = $2, observacoes = $3, ultimo_contato = $4, primeiro_contato = $5, atualizado_em = CURRENT_TIMESTAMP WHERE id = $6",
@@ -1022,7 +1068,7 @@ app.get(
   autorizar("admin", "head-admin"),
   (req, res) => {
     db.all(
-      "SELECT id, nome, email, username, permissao, status, telefone, departamento, ultimoAcesso as \"ultimoAcesso\" FROM usuarios ORDER BY nome",
+      "SELECT id, nome, email, username, permissao, status, telefone, departamento, ultimoAcesso as \"ultimoAcesso\", primeiro_contato, ultimo_contato FROM usuarios ORDER BY nome",
       (err, rows) => {
         if (err) {
           console.error(`[${getDataSaoPaulo()}] [GET USUARIOS] Erro ao buscar usuários:`, err)
@@ -1048,19 +1094,21 @@ app.post(
   ],
   validarRequisicao,
   async (req, res) => {
-    const { nome, email, username, password, permissao, status, telefone, departamento } = req.body
+    const { nome, email, username, password, permissao, status, telefone, departamento, primeiro_contato, ultimo_contato } = req.body
     const cargosUsuarioLogado = (req.usuario.cargo || '').toLowerCase().split(',').map(c => c.trim())
     const cargosNovos = permissao.toLowerCase().split(',').map(c => c.trim())
 
     const isLogadoHeadAdmin = cargosUsuarioLogado.includes("head-admin")
     const isLogadoAdmin = cargosUsuarioLogado.includes("admin")
-    
+
     const isNovoAdmin = cargosNovos.includes("admin")
     const isNovoHeadAdmin = cargosNovos.includes("head-admin")
 
     if (!isLogadoHeadAdmin && isLogadoAdmin && (isNovoAdmin || isNovoHeadAdmin)) {
       return res.status(403).json({ error: "Admin não pode criar usuários com cargo admin ou superior" })
     }
+
+
 
     try {
       const senhaHash = await new Promise((resolve, reject) => {
@@ -1071,8 +1119,8 @@ app.post(
       })
 
       const result = await dbQuery(
-        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento, ultimoAcesso) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null, new Date().toISOString()]
+        "INSERT INTO usuarios (nome, email, username, senha, permissao, status, telefone, departamento, ultimoAcesso, primeiro_contato, ultimo_contato) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        [nome, email, username, senhaHash, permissao.toLowerCase(), status || "ativo", telefone || null, departamento || null, new Date().toISOString(), primeiro_contato || null, ultimo_contato || null]
       )
       const usuarioId = result.rows ? result.rows[0]?.id : result.lastID
       await registrarLog(req.usuario.id, "CRIAR", "Usuários", `Usuário criado: ${username}`, nome, req)
@@ -1095,7 +1143,7 @@ app.put(
   validarRequisicao,
   async (req, res) => {
     const { id } = req.params
-    const { nome, email, password, permissao, status, telefone, departamento } = req.body
+    const { nome, email, password, permissao, status, telefone, departamento, primeiro_contato, ultimo_contato } = req.body
     const cargosUsuarioLogado = (req.usuario.cargo || '').toLowerCase().split(',').map(c => c.trim())
     const usuarioIdSendoEditado = parseInt(id)
 
@@ -1127,6 +1175,8 @@ app.put(
         return res.status(403).json({ error: "Admin não pode criar ou modificar para cargos admin ou superior" })
       }
 
+
+
       let senhaHash = null
       if (password) {
         senhaHash = await new Promise((resolve, reject) => {
@@ -1140,13 +1190,13 @@ app.put(
       let result
       if (password) {
         result = await dbQuery(
-          "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, atualizado_em = CURRENT_TIMESTAMP WHERE id = $8",
-          [nome, email, senhaHash, permissao.toLowerCase(), status, telefone, departamento, id]
+          "UPDATE usuarios SET nome = $1, email = $2, senha = $3, permissao = $4, status = $5, telefone = $6, departamento = $7, primeiro_contato = $8, ultimo_contato = $9, atualizado_em = CURRENT_TIMESTAMP WHERE id = $10",
+          [nome, email, senhaHash, permissao.toLowerCase(), status, telefone, departamento, primeiro_contato, ultimo_contato, id]
         )
       } else {
         result = await dbQuery(
-          "UPDATE usuarios SET nome = $1, email = $2, permissao = $3, status = $4, telefone = $5, departamento = $6, atualizado_em = CURRENT_TIMESTAMP WHERE id = $7",
-          [nome, email, permissao.toLowerCase(), status, telefone, departamento, id]
+          "UPDATE usuarios SET nome = $1, email = $2, permissao = $3, status = $4, telefone = $5, departamento = $6, primeiro_contato = $7, ultimo_contato = $8, atualizado_em = CURRENT_TIMESTAMP WHERE id = $9",
+          [nome, email, permissao.toLowerCase(), status, telefone, departamento, primeiro_contato, ultimo_contato, id]
         )
       }
 

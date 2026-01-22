@@ -373,6 +373,8 @@ function configurarEventos() {
       }
     })
   }
+
+
 }
 
 async function salvarUsuario() {
@@ -380,7 +382,7 @@ async function salvarUsuario() {
   const email = (document.getElementById("usuarioEmail")?.value || "").trim()
   const username = (document.getElementById("usuarioUsername")?.value || "").trim()
   const password = (document.getElementById("usuarioPassword")?.value || "").trim()
-  
+
   const checkboxes = document.querySelectorAll('input[name="usuarioCargo"]:checked');
   const cargos = Array.from(checkboxes).map(cb => cb.value);
   const cargo = cargos.join(",");
@@ -446,14 +448,14 @@ async function salvarUsuario() {
 
       console.log("[USUARIOS] Atualizando usuário:", usuarioEmEdicao, usuario)
       const resultado = await atualizarUsuario(usuarioEmEdicao, usuario)
-      
+
       const usuarioLogado = obterUsuarioLogado()
       if (resultado.token && usuarioLogado && usuarioLogado.id === parseInt(usuarioEmEdicao)) {
         localStorage.setItem("token", resultado.token)
         usuarioLogado.cargo = cargo
         localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado))
       }
-      
+
       registrarLog("EDITAR", "USUARIOS", `Usuário "${nome}" (${cargo}) atualizado`, nome)
       mostrarNotificacao("Usuário atualizado com sucesso!", "sucesso")
     } else {
@@ -505,6 +507,8 @@ function atualizarOpcoesCargo() {
   }
 }
 
+
+
 function editarUsuario(id) {
   const usuario = usuarios.find((u) => u.id === id)
   if (!usuario) return
@@ -523,10 +527,10 @@ function editarUsuario(id) {
   document.getElementById("usuarioNome").value = usuario.nome
   document.getElementById("usuarioEmail").value = usuario.email
   document.getElementById("usuarioUsername").value = usuario.username
-  
+
   // Reset checkboxes
   document.querySelectorAll('input[name="usuarioCargo"]').forEach(cb => cb.checked = false);
-  
+
   // Set checkboxes
   if (usuario.cargo) {
       const cargos = usuario.cargo.split(',').map(p => p.trim());
@@ -596,7 +600,9 @@ function abrirDetalhesUsuario(id) {
   document.getElementById("detailPermissao").textContent = formatarCargo(usr.cargo)
   document.getElementById("detailStatus").textContent = usr.status === "ativo" ? "Ativo" : "Inativo"
   document.getElementById("detailUltimoAcesso").textContent = formatarDataHoraSP(usr.ultimoAcesso)
-  
+
+
+
   const permissoesHtml = obterPermissoesFormatadas(usr.cargo)
   document.getElementById("detailPermissoes").innerHTML = permissoesHtml || '<span class="permission-tag">Nenhuma permissão atribuída</span>'
 
